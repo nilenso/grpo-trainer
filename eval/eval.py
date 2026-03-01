@@ -3,8 +3,10 @@
 Evaluation script for OCaml code generation using a local LLM.
 
 Reads problems from a HuggingFace dataset, generates solutions via OpenAI-compatible API
-(vLLM, llama.cpp, etc.), evaluates them using the training reward system, and outputs
-metrics to CSV.
+(vLLM, llama.cpp, etc.), evaluates them using the training reward system, and outputs:
+  - Enriched completions JSONL (primary, with _meta header for the viewer)
+  - Summary results CSV (lightweight, for CI/programmatic use)
+  - Jinja2 HTML report (via report.py)
 """
 
 import csv
@@ -164,7 +166,6 @@ _IMPERATIVE_PATTERNS = re.compile(
     r"""
     \bref\s          |   # ref keyword (ref x, not "reference")
     :=               |   # mutable assignment
-    !\w              |   # dereference (e.g. !x, !count)
     \bfor\s          |   # for loop
     \bwhile\s        |   # while loop
     \bArray\.set\b   |   # array mutation
@@ -172,6 +173,9 @@ _IMPERATIVE_PATTERNS = re.compile(
     """,
     re.VERBOSE,
 )
+# Note: `!` (dereference) is not matched standalone because it's also boolean
+# negation in OCaml. Dereference always implies a prior `ref` declaration,
+# which the `ref\s` pattern already catches.
 
 
 def detect_imperative_style(code: str) -> bool:

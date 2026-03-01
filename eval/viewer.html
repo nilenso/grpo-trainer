@@ -273,8 +273,10 @@ function setTheme(t) {
   themeBtn.textContent = t === 'dark' ? '☀️ Light' : '🌙 Dark';
   hljsLight.disabled = t === 'dark';
   hljsDark.disabled = t === 'light';
-  // Rebuild charts if loaded
-  if (window._currentChartBuilder) window._currentChartBuilder();
+  // Rebuild charts after theme CSS properties have propagated
+  requestAnimationFrame(() => {
+    if (window._currentChartBuilder) window._currentChartBuilder();
+  });
 }
 themeBtn.onclick = () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
 setTheme(localStorage.getItem('theme') || 'dark');
@@ -886,30 +888,31 @@ function renderProblemsTab(container, index, byIdA, byIdB, metaA, metaB) {
       </div>
       ${stageArrow}
       <div class="side-by-side">
-        ${renderRunPanel('Baseline', a, b, metaA)}
-        ${renderRunPanel('Current', b, a, metaB)}
+        ${renderRunPanel('Baseline', a, b, metaA, false)}
+        ${renderRunPanel('Current', b, a, metaB, true)}
       </div>`;
 
     // Lazy highlight
     panel.querySelectorAll('code.needs-highlight').forEach(c => { hljs.highlightElement(c); c.classList.remove('needs-highlight'); });
   }
 
-  function renderRunPanel(label, rec, other, meta) {
+  function renderRunPanel(label, rec, other, meta, showDelta = false) {
     const passed = rec.total_reward >= 1.0;
     const stage = rec.failure_stage || '';
     const stageLabel = stage ? `<span class="badge" style="background:var(--surface1);color:var(--red)">${stage}</span>` : '';
     const impBadge = rec.uses_imperative ? `<span class="badge badge-imperative">imperative${rec.uses_imperative !== other.uses_imperative ? ' ⚠️' : ''}</span>` : '';
 
-    // Score pills with deltas
+    // Score pills — deltas only shown on the Current panel (delta = current - baseline)
     const scores = ['type_score','compile_score','test_score','total_reward'];
     const scoreLabels = ['Type','Compile','Tests','Total'];
     const pills = scores.map((s, i) => {
       const v = rec[s], ov = other[s];
-      const d = v != null && ov != null ? v - ov : null;
-      // For baseline panel, delta is rec - other (baseline perspective)
-      // For current panel, delta is rec - other (current perspective)
-      const deltaHtml = d != null && Math.abs(d) > 0.001 ?
-        `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d.toFixed(2)}</span>` : '';
+      let deltaHtml = '';
+      if (showDelta) {
+        const d = v != null && ov != null ? v - ov : null;
+        deltaHtml = d != null && Math.abs(d) > 0.001 ?
+          `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d.toFixed(2)}</span>` : '';
+      }
       return `<span class="score-pill">${scoreLabels[i]}: ${fmt(v,2)} ${deltaHtml}</span>`;
     }).join('');
 
