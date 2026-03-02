@@ -116,6 +116,11 @@ code, pre { font-family: 'Google Sans Code', 'Fira Code', monospace; }
 
 /* Migration matrix heatmap */
 .matrix-table td.heat { text-align: center; font-weight: 500; border-radius: 4px; }
+.matrix-table th[title] { cursor: help; }
+.matrix-table th.col-header {
+  font-size: 0.75rem; white-space: nowrap; max-width: 70px;
+  overflow: hidden; text-overflow: ellipsis;
+}
 
 /* Comparison layout */
 .compare-layout {
@@ -396,6 +401,21 @@ function stageRank(s) {
   const prefix = s.split(':')[0];
   const idx = PIPELINE.indexOf(prefix);
   return idx >= 0 ? idx : -1;
+}
+
+function abbreviateStage(s) {
+  const abbrevs = {
+    'compile': 'comp', 'compile:timeout': 'comp:to',
+    'degenerate:repetitive': 'deg:rep', 'degenerate:empty': 'deg:empty',
+    'degenerate:low_code_ratio': 'deg:lcr', 'degenerate:code_block_spam': 'deg:spam',
+    'degenerate:stub': 'deg:stub',
+    'execution:test_fail': 'exec:tf', 'execution:timeout': 'exec:to',
+    'execution:exception': 'exec:exc',
+    'type_check:syntax': 'tc:syn', 'type_check:type': 'tc:type',
+    'type_check:timeout': 'tc:to',
+    'generation_error': 'gen:err', 'pass': 'pass', 'style': 'style',
+  };
+  return abbrevs[s] || s.replace(/([a-z])[a-z]+/g, '$1').slice(0, 8);
 }
 
 function diffBadge(d) {
@@ -983,17 +1003,20 @@ function renderAggregateTab(container, metaA, metaB, recsA, recsB, index) {
     </div>
   `, true)}</div>`;
 
-  // Stage migration matrix
+  // Stage migration matrix — pruned (no empty rows/cols) with abbreviated headers
   const migration = computeStageMigration(recsA, recsB);
   if (Object.keys(migration).length) {
     const allStages = [...new Set([...Object.keys(migration), ...Object.values(migration).flatMap(m => Object.keys(m))])].sort();
-    const maxVal = Math.max(...allStages.flatMap(r => allStages.map(c => (migration[r]||{})[c]||0)));
+    // Prune: only keep rows with at least one non-zero cell, cols with at least one non-zero cell
+    const activeRows = allStages.filter(r => allStages.some(c => (migration[r]||{})[c]));
+    const activeCols = allStages.filter(c => allStages.some(r => (migration[r]||{})[c]));
+    const maxVal = Math.max(...activeRows.flatMap(r => activeCols.map(c => (migration[r]||{})[c]||0)));
     let matrixHtml = '<table class="data-table matrix-table"><thead><tr><th>Base ↓ / Current →</th>';
-    allStages.forEach(s => matrixHtml += `<th>${s}</th>`);
+    activeCols.forEach(s => matrixHtml += `<th class="col-header" title="${s}">${abbreviateStage(s)}</th>`);
     matrixHtml += '</tr></thead><tbody>';
-    allStages.forEach(row => {
+    activeRows.forEach(row => {
       matrixHtml += `<tr><td><strong>${row}</strong></td>`;
-      allStages.forEach(col => {
+      activeCols.forEach(col => {
         const val = (migration[row]||{})[col]||0;
         const intensity = maxVal > 0 ? val/maxVal : 0;
         const bg = val > 0 ? `rgba(137,180,250,${0.1 + intensity * 0.6})` : 'transparent';
