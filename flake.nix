@@ -52,6 +52,7 @@
           pkgs.which
           pkgs.cudaPackages.cudatoolkit
           pkgs.cudaPackages.cuda_cudart
+          pkgs.cudaPackages.cuda_nvcc  # Provides libnvptxcompiler.so for PTX JIT compilation
           pkgs.cudaPackages.cuda_nvrtc
           pkgs.cudaPackages.libnvjitlink
           pkgs.cudaPackages.libcublas
@@ -79,6 +80,7 @@
                 export LD_LIBRARY_PATH="${
                   pkgs.lib.makeLibraryPath [
                     pkgs.cudaPackages.cuda_cudart
+                    pkgs.cudaPackages.cuda_nvcc
                     pkgs.cudaPackages.cuda_nvrtc
                     pkgs.cudaPackages.libnvjitlink
                     pkgs.cudaPackages.libcublas
@@ -116,6 +118,7 @@
                   lib.makeLibraryPath [
                     pkgs.stdenv.cc.cc.lib
                     pkgs.cudaPackages.cuda_cudart
+                    pkgs.cudaPackages.cuda_nvcc
                     pkgs.cudaPackages.cuda_nvrtc
                     pkgs.cudaPackages.libnvjitlink
                     pkgs.cudaPackages.cudatoolkit
