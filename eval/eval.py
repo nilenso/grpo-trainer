@@ -151,12 +151,19 @@ def evaluate_solution(pid: str, completion: str, tests: str) -> dict[str, Any]:
 
 
 def read_problems(dataset_id: str, limit: int | None = None) -> list[dict[str, Any]]:
-    """Read problems from HuggingFace dataset, optionally limiting the count."""
-    split = "train"
-    if limit is not None and limit > 0:
-        split = f"train[:{limit}]"
-    dataset = load_dataset(dataset_id, split=split)
+    """Read problems from HuggingFace dataset or local Arrow dataset, optionally limiting the count."""
+    local_path = Path(dataset_id)
+    if local_path.is_dir() and (local_path / "dataset_info.json").exists():
+        from datasets import load_from_disk
+        dataset = load_from_disk(str(local_path))
+    else:
+        split = "train"
+        if limit is not None and limit > 0:
+            split = f"train[:{limit}]"
+        dataset = load_dataset(dataset_id, split=split)
     problems = [dict(row) for row in dataset]
+    if local_path.is_dir() and limit is not None and limit > 0:
+        problems = problems[:limit]
     return problems
 
 
