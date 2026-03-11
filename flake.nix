@@ -52,6 +52,8 @@
           pkgs.which
           pkgs.cudaPackages.cudatoolkit
           pkgs.cudaPackages.cuda_cudart
+          pkgs.cudaPackages.cuda_nvrtc
+          pkgs.cudaPackages.libnvjitlink
           pkgs.cudaPackages.libcublas
           pkgs.stdenv.cc.cc.lib  # Provides libstdc++.so.6 for Python packages with C++ extensions
         ];
@@ -77,6 +79,8 @@
                 export LD_LIBRARY_PATH="${
                   pkgs.lib.makeLibraryPath [
                     pkgs.cudaPackages.cuda_cudart
+                    pkgs.cudaPackages.cuda_nvrtc
+                    pkgs.cudaPackages.libnvjitlink
                     pkgs.cudaPackages.libcublas
                     pkgs.cudaPackages.cudatoolkit
                   ]
@@ -112,6 +116,8 @@
                   lib.makeLibraryPath [
                     pkgs.stdenv.cc.cc.lib
                     pkgs.cudaPackages.cuda_cudart
+                    pkgs.cudaPackages.cuda_nvrtc
+                    pkgs.cudaPackages.libnvjitlink
                     pkgs.cudaPackages.cudatoolkit
                     pkgs.cudaPackages.libcublas
                   ]
