@@ -18,7 +18,7 @@
           config = {
             allowUnfree = true;
             cudaSupport = system == "x86_64-linux";
-            cudaCapabilities = [ "8.6" ];
+            cudaCapabilities = [ "12.0" ];
           };
         };
 
@@ -104,10 +104,10 @@
               export UV_PYTHON_DOWNLOADS=never
 
               ${lib.optionalString enableCuda ''
-                # Build CUDA only for Nvidia A40 (compute capability 8.6).
-                export NIX_CUDA_ARCHITECTURES=86
-                export CMAKE_CUDA_ARCHITECTURES=86
-                export TORCH_CUDA_ARCH_LIST="8.6"
+                # Build CUDA only for Nvidia RTX PRO 4500 Blackwell (compute capability 12.0).
+                export NIX_CUDA_ARCHITECTURES=120
+                export CMAKE_CUDA_ARCHITECTURES=120
+                export TORCH_CUDA_ARCH_LIST="12.0"
               ''}
 
               ${lib.optionalString pkgs.stdenv.isLinux ''
