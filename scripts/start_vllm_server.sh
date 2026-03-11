@@ -128,7 +128,7 @@ CMD_ARGS=(
 
 # Add disable-log-requests if enabled
 if [[ "$DISABLE_LOG_REQUESTS" == "true" ]]; then
-    CMD_ARGS+=(--disable-log-requests)
+    CMD_ARGS+=(--no-enable-log-requests)
 fi
 
 # Add any extra arguments
