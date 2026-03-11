@@ -1,6 +1,6 @@
 {
   description =
-    "Nix dev shell for ocamler-grpo (llama.cpp + OCaml + uv toolchains)";
+    "Nix dev shell for ocamler-grpo (OCaml + uv toolchains)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -23,9 +23,6 @@
         };
 
         lib = pkgs.lib;
-
-        llamaCpp = pkgs.llama-cpp;
-        llamaCppCuda = pkgs.llama-cpp.override { cudaSupport = true; };
 
         huggingfaceCli = pkgs.python312Packages.huggingface-hub;
 
@@ -60,43 +57,9 @@
 
         darwinExtras = lib.optionals pkgs.stdenv.isDarwin [ ];
 
-        mkDevShell = { llamaPkg, enableCuda ? false }:
-          let
-            # Create a wrapper for llama-server (Linux only, with CUDA setup)
-            llamaServerWrapper = if pkgs.stdenv.isLinux then
-              pkgs.writeShellScriptBin "llama-server" ''
-                # Create a temporary directory for our libcuda.so.1 symlink
-                CUDA_STUB_DIR=$(mktemp -d)
-                trap "rm -rf $CUDA_STUB_DIR" EXIT
-
-                # Symlink only libcuda.so.1 from system
-                if [ -f /usr/lib/x86_64-linux-gnu/libcuda.so.1 ]; then
-                  ln -s /usr/lib/x86_64-linux-gnu/libcuda.so.1 "$CUDA_STUB_DIR/libcuda.so.1"
-                  ln -s /usr/lib/x86_64-linux-gnu/libcuda.so.1 "$CUDA_STUB_DIR/libcuda.so"
-                fi
-
-                # Only Nix libraries + our isolated libcuda.so.1
-                export LD_LIBRARY_PATH="${
-                  pkgs.lib.makeLibraryPath [
-                    pkgs.cudaPackages.cuda_cudart
-                    pkgs.cudaPackages.cuda_nvrtc
-                    pkgs.cudaPackages.libnvjitlink
-                    pkgs.cudaPackages.libcublas
-                    pkgs.cudaPackages.cudatoolkit
-                  ]
-                }:$CUDA_STUB_DIR"
-
-                # Run the actual llama-server from the llamaPkg
-                exec ${llamaPkg}/bin/llama-server "$@"
-              ''
-            else
-              # On Darwin, just use llama-server directly without CUDA wrapper
-              pkgs.writeShellScriptBin "llama-server" ''
-                exec ${llamaPkg}/bin/llama-server "$@"
-              '';
-          in pkgs.mkShell {
-            packages = commonPackages ++ linuxExtras ++ darwinExtras
-              ++ [ llamaServerWrapper ];
+        mkDevShell = { enableCuda ? false }:
+          pkgs.mkShell {
+            packages = commonPackages ++ linuxExtras ++ darwinExtras;
 
             shellHook = ''
               # Use Nix's Python to avoid glibc conflicts
@@ -142,12 +105,10 @@
           };
       in {
         devShells.default = mkDevShell {
-          llamaPkg = llamaCpp;
           enableCuda = false;
         };
 
         devShells.cuda = mkDevShell {
-          llamaPkg = llamaCppCuda;
           enableCuda = true;
         };
       });
