@@ -1,0 +1,2216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eval Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link id="hljsLight" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<link id="hljsDark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" disabled>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/ocaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+:root {
+  --bg: #ffffff; --bg-soft: #ffffff; --text: #171717; --card-bg: rgba(255, 255, 255, 0.92);
+  --sub: #5f5f5f; --grid: rgba(23, 23, 23, 0.12); --surface0: rgba(255, 255, 255, 0.8);
+  --surface1: rgba(0, 0, 0, 0.04); --surface2: rgba(0, 0, 0, 0.18);
+  --green: #18794e; --red: #b53d2e; --yellow: #ac6a00; --blue: #0f766e;
+  --mauve: #8b5cf6; --peach: #c45722; --teal: #0f766e; --pink: #ca3d75;
+  --series-base: #8d8d8d; --series-base-fill: rgba(141, 141, 141, 0.7);
+  --series-trained: #111111; --series-trained-fill: rgba(17, 17, 17, 0.82);
+  --overlay0: #808080; --mantle: #f8f8f8; --crust: #ececec; --shadow: 0 10px 32px rgba(0, 0, 0, 0.08);
+  --radius-xl: 28px; --radius-lg: 20px; --radius-md: 14px;
+}
+[data-theme="light"] {
+  --bg: #ffffff; --bg-soft: #ffffff; --text: #171717; --card-bg: rgba(255, 255, 255, 0.92);
+  --sub: #5f5f5f; --grid: rgba(23, 23, 23, 0.12); --surface0: rgba(255, 255, 255, 0.8);
+  --surface1: rgba(0, 0, 0, 0.04); --surface2: rgba(0, 0, 0, 0.18);
+  --overlay0: #808080; --mantle: #f8f8f8; --crust: #ececec; --shadow: 0 10px 32px rgba(0, 0, 0, 0.08);
+}
+[data-theme="dark"] {
+  --bg: #111111; --bg-soft: #171717; --text: #f5f5f5; --card-bg: rgba(24, 24, 24, 0.9);
+  --sub: #b3b3b3; --grid: rgba(255, 255, 255, 0.12); --surface0: rgba(255, 255, 255, 0.03);
+  --surface1: rgba(255, 255, 255, 0.06); --surface2: rgba(255, 255, 255, 0.26);
+  --overlay0: #7a7a7a; --mantle: #101010; --crust: #0a0a0a; --shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+  position: relative;
+}
+body::before {
+  display: none;
+}
+code, pre {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--grid);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+.header h1 {
+  font-size: clamp(1.7rem, 2.6vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.theme-btn {
+  background: var(--surface1);
+  border: 1px solid var(--grid);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-family: inherit;
+  font-weight: 500;
+}
+.theme-btn:hover { opacity: 0.8; }
+
+/* Drop zone */
+.drop-zone {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 34px 28px 60px;
+}
+.upload-shell,
+.run-hero,
+.summary-bar {
+  background: var(--card-bg);
+  border: 1px solid var(--grid);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+.upload-shell {
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.upload-shell h3 {
+  font-size: 1.08rem;
+}
+.upload-shell p {
+  color: var(--sub);
+  font-size: 0.92rem;
+}
+.file-inputs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.upload-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.upload-card {
+  min-width: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface0) 92%, transparent), color-mix(in srgb, var(--surface1) 58%, transparent));
+  border: 1.5px dashed var(--grid);
+  border-radius: 22px;
+  padding: 22px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, background 0.2s;
+  min-height: 204px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+.upload-card:hover,
+.upload-card.drag-over {
+  border-color: var(--text);
+  transform: translateY(-3px);
+  background: linear-gradient(180deg, var(--surface0), color-mix(in srgb, var(--surface1) 74%, transparent));
+}
+.upload-card h3 {
+  font-size: 1rem;
+  color: var(--text);
+}
+.upload-card p {
+  color: var(--sub);
+  font-size: 0.92rem;
+}
+.upload-file-name {
+  font-size: 0.82rem;
+  color: var(--text);
+  min-height: 18px;
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.upload-file-name.empty { color: var(--sub); }
+.file-btn {
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+  padding: 12px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+}
+.file-btn:hover { opacity: 0.9; }
+.upload-note {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface0);
+  border: 1px solid var(--grid);
+  color: var(--sub);
+  font-size: 0.84rem;
+}
+
+/* Run hero / notes */
+.run-hero {
+  margin: 0 24px 18px;
+  padding: 24px 26px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(250px, 0.8fr);
+}
+.run-hero-main {
+  display: grid;
+  gap: 10px;
+}
+.run-hero-main h2 {
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+}
+.run-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.run-chip,
+.confidence-chip {
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--grid);
+  background: var(--surface0);
+  font-size: 0.77rem;
+  color: var(--sub);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.confidence-weak { color: var(--yellow); }
+.confidence-medium { color: var(--blue); }
+.confidence-strong { color: var(--green); }
+.run-hero-summary {
+  font-size: 1rem;
+  max-width: 56ch;
+  color: var(--text);
+}
+.run-hero-side {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.signal-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface0) 90%, transparent), color-mix(in srgb, var(--surface1) 60%, transparent));
+  border: 1px solid var(--grid);
+}
+.signal-card-label {
+  font-size: 0.76rem;
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.signal-card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.signal-card-copy {
+  color: var(--sub);
+  margin-top: 6px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+/* Cards */
+.metric-cluster {
+  margin: 0 24px 16px;
+}
+.metric-cluster-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.metric-cluster-title {
+  font-size: 0.92rem;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.metric-cluster-copy {
+  color: var(--sub);
+  font-size: 0.82rem;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 0;
+}
+.card {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 16px 18px;
+  min-width: 140px;
+  border: 1px solid var(--grid);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+.card-label {
+  font-size: 0.72rem;
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.card-value {
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  font-weight: 700;
+  margin-top: 8px;
+  letter-spacing: -0.03em;
+}
+.card-value.na { color: var(--overlay0); font-size: 1.1rem; }
+.card-delta { font-size: 0.8rem; margin-top: 2px; }
+.card-delta.positive { color: var(--green); }
+.card-delta.negative { color: var(--red); }
+.card-delta.neutral { color: var(--sub); }
+
+/* Charts grid */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 0 24px 18px;
+}
+.chart-card {
+  background: var(--card-bg);
+  border-radius: 22px;
+  padding: 16px 16px 10px;
+  border: 1px solid var(--grid);
+  box-shadow: var(--shadow);
+}
+.chart-card h3 {
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.chart-card canvas { max-height: 280px; }
+
+/* Collapsible sections */
+.section { margin: 0 24px 16px; }
+.section-header {
+  background: var(--card-bg);
+  border-radius: 20px 20px 0 0;
+  padding: 14px 18px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  font-weight: 500;
+  border: 1px solid var(--grid);
+  border-bottom: none;
+  box-shadow: var(--shadow);
+}
+.section-header:hover { background: var(--surface1); }
+.section-header .arrow { transition: transform 0.2s; }
+.section-header.collapsed .arrow { transform: rotate(-90deg); }
+.section-body {
+  background: var(--card-bg);
+  border-radius: 0 0 20px 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--grid);
+  box-shadow: var(--shadow);
+}
+.section-body.hidden { display: none; }
+.section-header.static {
+  cursor: default;
+  border-radius: 14px 14px 0 0;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+.section-body.static {
+  border-radius: 0 0 14px 14px;
+  padding: 10px 14px;
+}
+.section-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 0 0 16px;
+}
+.section-pair-card {
+  min-width: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--grid);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.section-pair-card .section-header.static {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--grid);
+  padding: 12px 16px;
+}
+.section-pair-card .section-body.static {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 12px 16px;
+}
+@media (max-width: 900px) {
+  .section-pair {
+    grid-template-columns: 1fr;
+  }
+}
+.section.compact {
+  max-width: 1120px;
+  margin: 0 auto 12px;
+}
+.section.compact .cards {
+  gap: 10px;
+}
+.section.compact .card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  box-shadow: none;
+  min-width: 0;
+}
+.section.compact .card-label {
+  font-size: 0.64rem;
+}
+.section.compact .card-value {
+  font-size: clamp(1.05rem, 1.3vw, 1.35rem);
+  margin-top: 6px;
+}
+.section.compact .data-table th,
+.section.compact .data-table td {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+/* Tables */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.data-table th, .data-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--grid); }
+.data-table th {
+  color: var(--sub);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.72rem;
+}
+.data-table tr:hover { background: var(--surface1); }
+
+/* Migration matrix heatmap / bubble */
+.matrix-table td.heat { text-align: center; font-weight: 500; border-radius: 4px; }
+.matrix-table th[title] { cursor: help; }
+.matrix-table th.col-header {
+  font-size: 0.75rem; white-space: nowrap; max-width: 70px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.matrix-compact {
+  table-layout: auto;
+  width: 100%;
+}
+.matrix-compact th {
+  padding: 5px 8px !important;
+  font-size: 0.68rem !important;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.matrix-compact td {
+  padding: 6px 8px !important;
+  font-size: 0.82rem !important;
+  white-space: nowrap;
+}
+
+/* Comparison layout */
+.problems-shell { display: flex; flex-direction: column; height: calc(100vh - 120px); }
+.problems-filters {
+  background: var(--card-bg);
+  border: 1px solid var(--grid);
+  padding: 12px;
+  margin: 0 24px 16px;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+.filters-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+#searchInput {
+  flex: 0 0 clamp(260px, 28vw, 380px);
+  min-width: 260px;
+}
+.filters-dropdowns {
+  display: flex;
+  flex: 1 1 620px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.filters-dropdowns select {
+  flex: 1 1 150px;
+  min-width: 150px;
+}
+.problems-filters input, .problems-filters select {
+  background: var(--surface0); border: 1px solid var(--grid); color: var(--text);
+  padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; width: 100%; font-family: inherit;
+}
+.compare-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+  padding: 0 24px 24px;
+}
+.compare-layout > * { min-width: 0; }
+.sidebar {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--grid);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+.sidebar-count { padding: 6px 12px; font-size: 0.78rem; color: var(--sub); border-bottom: 1px solid var(--grid); }
+.sidebar-list { flex: 1; overflow-y: auto; }
+.sidebar-item {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--grid);
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.sidebar-item:hover { background: var(--surface1); }
+.sidebar-item.active {
+  background: var(--surface1);
+  border-left: 3px solid var(--text);
+}
+.sidebar-item-top { display: flex; justify-content: space-between; align-items: center; }
+.sidebar-id { font-weight: 500; font-size: 0.85rem; }
+.sidebar-delta { font-size: 0.8rem; font-weight: 600; }
+.sidebar-delta.positive { color: var(--green); }
+.sidebar-delta.negative { color: var(--red); }
+.sidebar-delta.zero { color: var(--sub); }
+.sidebar-bottom { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.badge {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.badge-easy {
+  background: color-mix(in srgb, var(--green) 28%, var(--card-bg));
+  color: var(--green);
+  border: 1px solid color-mix(in srgb, var(--green) 55%, transparent);
+}
+.badge-medium {
+  background: color-mix(in srgb, var(--yellow) 28%, var(--card-bg));
+  color: var(--yellow);
+  border: 1px solid color-mix(in srgb, var(--yellow) 55%, transparent);
+}
+.badge-hard {
+  background: color-mix(in srgb, var(--red) 28%, var(--card-bg));
+  color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 55%, transparent);
+}
+.badge-improved { background: rgba(166,227,161,0.2); color: var(--green); }
+.badge-regressed { background: rgba(243,139,168,0.2); color: var(--red); }
+.badge-unchanged { background: var(--surface1); color: var(--sub); }
+.badge-imperative { background: rgba(250,179,135,0.2); color: var(--peach); }
+.stage-transition { font-size: 0.72rem; color: var(--sub); }
+
+/* Detail panel */
+.detail-panel {
+  overflow-y: auto;
+  overflow-x: auto;
+  min-width: 0;
+  padding: 20px;
+  background: var(--card-bg);
+  border: 1px solid var(--grid);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+.detail-panel.empty-state {
+  display: flex; align-items: center; justify-content: center; color: var(--sub);
+}
+.detail-header { margin-bottom: 16px; }
+.detail-header h2 { font-size: 1.1rem; margin-bottom: 8px; }
+.detail-problem,
+.detail-tests {
+  background: var(--surface0);
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+  border: 1px solid var(--grid);
+}
+.detail-tests { max-height: 300px; overflow-y: auto; }
+.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.side-by-side > * { min-width: 0; }
+.run-panel {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface0) 90%, transparent), color-mix(in srgb, var(--surface1) 70%, transparent));
+  border-radius: 18px;
+  padding: 14px;
+  border: 1px solid var(--grid);
+  min-width: 0;
+}
+.run-panel h3 { font-size: 0.9rem; margin-bottom: 10px; color: var(--sub); }
+.score-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.score-pill {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface1);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  border: 1px solid var(--grid);
+}
+.score-pill .delta { font-weight: 600; }
+.score-pill .delta.up { color: var(--green); }
+.score-pill .delta.down { color: var(--red); }
+.stat-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.stat-badge {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: var(--surface1);
+  color: var(--sub);
+}
+.code-block {
+  background: var(--mantle);
+  border-radius: 14px;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid var(--grid);
+}
+.code-block pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.code-block code {
+  background: transparent !important;
+  white-space: inherit;
+}
+
+/* Summary bar for comparison */
+.summary-bar {
+  display: grid;
+  gap: 14px;
+  padding: 18px 24px;
+  margin: 0 24px 16px;
+  font-size: 0.85rem;
+}
+.summary-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.summary-panel {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface0) 92%, transparent), color-mix(in srgb, var(--surface1) 72%, transparent));
+  border: 1px solid var(--grid);
+  border-radius: 18px;
+  padding: 14px;
+}
+.summary-panel-label {
+  color: var(--sub);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.summary-panel-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: 6px;
+}
+.summary-panel-copy {
+  color: var(--sub);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+.summary-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.summary-item { display: flex; gap: 4px; }
+.summary-item .label { color: var(--sub); }
+
+/* Scrollable main for dashboard */
+.dashboard { overflow-y: auto; max-height: calc(100vh - 60px); }
+.dashboard .problem-list-section { padding: 0 24px 24px; }
+.problem-item {
+  background: var(--card-bg);
+  border-radius: 18px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid var(--grid);
+  box-shadow: var(--shadow);
+}
+.problem-item-header {
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.problem-item-header:hover { background: var(--surface1); }
+.problem-item-body { padding: 0 16px 16px; border-top: 1px solid var(--grid); }
+
+/* Aggregate section in comparison */
+.agg-section { padding: 16px 24px; overflow-y: auto; }
+.agg-section .section { margin: 0 0 16px; }
+.agg-section .cards { padding: 0; margin-bottom: 16px; }
+.agg-section .charts-grid { padding: 0; margin-bottom: 16px; }
+
+/* Tabs for compare view */
+.compare-tabs {
+  display: flex;
+  gap: 10px;
+  padding: 0 24px 14px;
+  flex-wrap: wrap;
+}
+.compare-tab {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  border: 1px solid var(--grid);
+  border-radius: 999px;
+  color: var(--sub);
+  background: var(--surface0);
+}
+.compare-tab:hover { color: var(--text); }
+.compare-tab.active {
+  color: var(--text);
+  border-color: var(--text);
+  background: var(--surface1);
+}
+
+/* Details/summary */
+details {
+  margin-bottom: 8px;
+  background: #f5f5f5;
+  border: 1px solid var(--grid);
+  border-radius: 12px;
+  padding: 0 12px;
+}
+details[open] {
+  background: #efefef;
+}
+details summary {
+  cursor: pointer; font-weight: 500; font-size: 0.9rem;
+  padding: 10px 0; color: var(--sub); list-style: none;
+}
+details summary::before { content: '▶ '; font-size: 0.7rem; }
+details[open] summary::before { content: '▼ '; }
+
+/* Loading */
+.loading { text-align: center; padding: 40px; color: var(--sub); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+
+@media (max-width: 900px) {
+  .header {
+    padding: 18px;
+  }
+
+  .drop-zone {
+    padding: 22px 18px 42px;
+  }
+
+  .run-hero,
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-sections {
+    grid-template-columns: 1fr;
+  }
+
+  #searchInput {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .filters-dropdowns {
+    flex: 1 1 100%;
+  }
+
+  .filters-dropdowns select {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 140px;
+  }
+
+  .compare-layout {
+    grid-template-columns: 1fr;
+    padding: 0 24px 24px;
+  }
+
+  .sidebar {
+    max-height: 300px;
+  }
+
+  .side-by-side {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .header h1 {
+    font-size: 1.8rem;
+  }
+
+  .upload-shell,
+  .run-hero,
+  .summary-bar,
+  .chart-card,
+  .section,
+  .detail-panel,
+  .sidebar {
+    border-radius: 18px;
+  }
+
+  .charts-grid,
+  .agg-section,
+  .cards,
+  .summary-bar,
+  .compare-tabs,
+  .problems-filters,
+  .compare-layout,
+  .section,
+  .problem-list-section {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .run-hero,
+  .summary-bar,
+  .section,
+  .problems-filters,
+  .charts-grid,
+  .metric-cluster,
+  .agg-section {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+
+  .compare-tabs {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .compare-layout {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .charts-grid,
+  .agg-section {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Eval Viewer</h1>
+  <button class="theme-btn" id="themeToggle">Dark mode</button>
+</div>
+
+<div id="app">
+  <div class="drop-zone" id="dropZone">
+    <div>
+      <div class="upload-shell">
+        <div>
+          <h3>Upload evaluation outputs</h3>
+          <p>Select one <code>completions.jsonl</code> for a single run, or select base + trained files for comparison. Everything runs in-browser.</p>
+        </div>
+        <div class="upload-sections">
+          <div class="upload-card dotted-drop" id="baseDropArea" onclick="pickNamedFile('base')">
+            <h3>Base model run</h3>
+            <p>Drop base-model <code>completions.jsonl</code> here or click to select.</p>
+            <div class="upload-file-name empty" id="baseFileName">No file selected</div>
+          </div>
+          <div class="upload-card dotted-drop" id="trainedDropArea" onclick="pickNamedFile('trained')">
+            <h3>Trained model run</h3>
+            <p>Drop trained-model <code>completions.jsonl</code> here or click to select.</p>
+            <div class="upload-file-name empty" id="trainedFileName">No file selected</div>
+          </div>
+        </div>
+        <div class="file-inputs">
+          <button class="file-btn" onclick="renderSelectedComparison()">Compare selected files</button>
+          <button class="file-btn" onclick="pickDashboardFile()">Open single-run dashboard</button>
+        </div>
+        <div class="upload-note">Use comparison mode when both files share the same problem IDs. If the eval only covers a small sample, treat the dashboard as directional rather than benchmark-grade.</div>
+      </div>
+    </div>
+    <input type="file" id="baseInput" accept=".jsonl" style="display:none">
+    <input type="file" id="trainedInput" accept=".jsonl" style="display:none">
+    <input type="file" id="dashboardInput" accept=".jsonl" style="display:none">
+  </div>
+</div>
+
+<script>
+// ─── Theme ───
+const themeBtn = document.getElementById('themeToggle');
+const hljsLight = document.getElementById('hljsLight');
+const hljsDark = document.getElementById('hljsDark');
+
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('theme', t);
+  themeBtn.textContent = t === 'dark' ? 'Light mode' : 'Dark mode';
+  hljsLight.disabled = t === 'dark';
+  hljsDark.disabled = t === 'light';
+  // Rebuild charts after theme CSS properties have propagated
+  requestAnimationFrame(() => {
+    if (window._currentChartBuilder) window._currentChartBuilder();
+  });
+}
+themeBtn.onclick = () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+setTheme(localStorage.getItem('theme') || 'light');
+
+// ─── Chart.js defaults ───
+function chartColors() {
+  const s = getComputedStyle(document.documentElement);
+  return {
+    text: s.getPropertyValue('--text').trim(),
+    sub: s.getPropertyValue('--sub').trim(),
+    grid: s.getPropertyValue('--grid').trim(),
+    green: s.getPropertyValue('--green').trim(),
+    red: s.getPropertyValue('--red').trim(),
+    yellow: s.getPropertyValue('--yellow').trim(),
+    blue: s.getPropertyValue('--blue').trim(),
+    mauve: s.getPropertyValue('--mauve').trim(),
+    peach: s.getPropertyValue('--peach').trim(),
+    teal: s.getPropertyValue('--teal').trim(),
+    pink: s.getPropertyValue('--pink').trim(),
+    surface1: s.getPropertyValue('--surface1').trim(),
+  };
+}
+let activeCharts = [];
+function destroyCharts() { activeCharts.forEach(c => c.destroy()); activeCharts = []; }
+function makeChart(canvas, cfg) {
+  const c = chartColors();
+  cfg.options = cfg.options || {};
+  cfg.options.plugins = cfg.options.plugins || {};
+  cfg.options.plugins.legend = cfg.options.plugins.legend || {};
+  cfg.options.plugins.legend.labels = { color: c.text, font: { family: "'Inter'" } };
+  if (cfg.options.scales) {
+    for (const axis of Object.values(cfg.options.scales)) {
+      axis.ticks = axis.ticks || {};
+      axis.ticks.color = c.sub;
+      axis.ticks.font = axis.ticks.font || { family: "'JetBrains Mono'" };
+      axis.grid = axis.grid || {};
+      axis.grid.color = c.grid;
+      if (axis.title) {
+        axis.title.color = c.sub;
+        axis.title.font = axis.title.font || { family: "'Inter'", weight: '500' };
+      }
+    }
+  }
+  const chart = new Chart(canvas, cfg);
+  activeCharts.push(chart);
+  return chart;
+}
+
+// ─── File handling ───
+const app = document.getElementById('app');
+const dropZone = document.getElementById('dropZone');
+const baseDropArea = document.getElementById('baseDropArea');
+const trainedDropArea = document.getElementById('trainedDropArea');
+const baseInput = document.getElementById('baseInput');
+const trainedInput = document.getElementById('trainedInput');
+const dashboardInput = document.getElementById('dashboardInput');
+const baseFileName = document.getElementById('baseFileName');
+const trainedFileName = document.getElementById('trainedFileName');
+
+const selectedFiles = { base: null, trained: null };
+
+function pickNamedFile(kind) {
+  if (kind === 'base') baseInput.click();
+  else trainedInput.click();
+}
+function pickDashboardFile() { dashboardInput.click(); }
+
+function setSelectedFile(kind, file) {
+  if (!/\.jsonl$/i.test(file.name)) {
+    alert(`Please select a .jsonl file for ${kind === 'base' ? 'Base model' : 'Trained model'}`);
+    return;
+  }
+  selectedFiles[kind] = file;
+  const label = kind === 'base' ? baseFileName : trainedFileName;
+  label.textContent = file.name;
+  label.classList.remove('empty');
+}
+
+baseInput.onchange = () => {
+  const f = baseInput.files?.[0];
+  if (!f) return;
+  setSelectedFile('base', f);
+};
+trainedInput.onchange = () => {
+  const f = trainedInput.files?.[0];
+  if (!f) return;
+  setSelectedFile('trained', f);
+};
+dashboardInput.onchange = () => {
+  const f = dashboardInput.files?.[0];
+  if (!f) return;
+  if (!/\.jsonl$/i.test(f.name)) return alert('Please select a .jsonl file');
+  parseJSONL(f).then(renderDashboard);
+};
+
+function renderSelectedComparison() {
+  if (!selectedFiles.base || !selectedFiles.trained) {
+    return alert('Please select both Base and Trained JSONL files');
+  }
+  Promise.all([parseJSONL(selectedFiles.base), parseJSONL(selectedFiles.trained)])
+    .then(([baseData, trainedData]) => renderComparison(baseData, trainedData));
+}
+
+function bindDropArea(el, kind) {
+  el.ondragover = e => { e.preventDefault(); el.classList.add('drag-over'); };
+  el.ondragleave = () => el.classList.remove('drag-over');
+  el.ondrop = e => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    const f = Array.from(e.dataTransfer.files).find(file => /\.jsonl$/i.test(file.name));
+    if (!f) return alert('Please drop a .jsonl file');
+    setSelectedFile(kind, f);
+  };
+}
+
+bindDropArea(baseDropArea, 'base');
+bindDropArea(trainedDropArea, 'trained');
+
+function parseJSONL(file) {
+  return file.text().then(text => {
+    const lines = text.split('\n').filter(l => l.trim());
+    let meta = null;
+    const records = [];
+    for (const line of lines) {
+      const obj = JSON.parse(line);
+      if (obj._meta) { meta = obj; continue; }
+      records.push(obj);
+    }
+    return { meta, records, fileName: file.name };
+  });
+}
+
+// ─── Utility ───
+function fmt(v, decimals=1) { return v == null ? 'N/A' : Number(v).toFixed(decimals); }
+function fmtPct(v) { return v == null ? 'N/A' : Number(v).toFixed(1) + '%'; }
+function fmtDelta(a, b, pct=false) {
+  if (a == null || b == null) return { text: 'N/A', cls: 'neutral' };
+  const d = b - a;
+  const cls = Math.abs(d) < 0.01 ? 'neutral' : d > 0 ? 'positive' : 'negative';
+  const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '';
+  const text = arrow + (pct ? d.toFixed(1) + '%' : d.toFixed(2));
+  return { text, cls };
+}
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function num(v, fallback=0) { return Number.isFinite(Number(v)) ? Number(v) : fallback; }
+function fmtSigned(v, decimals=1, suffix='') {
+  if (v == null || Number.isNaN(Number(v))) return 'N/A';
+  const n = Number(v);
+  const sign = n > 0 ? '+' : '';
+  return `${sign}${n.toFixed(decimals)}${suffix}`;
+}
+function confidenceInfo(total) {
+  if (total >= 100) return { label: 'Benchmarkable sample', cls: 'confidence-strong' };
+  if (total >= 30) return { label: 'Useful signal', cls: 'confidence-medium' };
+  return { label: 'Directional only', cls: 'confidence-weak' };
+}
+function runTakeaway(m) {
+  if (!m || !m.total) return 'No records loaded.';
+  if (num(m.pass_rate) === 0 && num(m.type_check_rate) === 0) {
+    return 'Most failures are happening before type checking. The model is not yet producing structurally valid OCaml often enough.';
+  }
+  if (num(m.pass_rate) === 0 && num(m.compile_rate) > 0) {
+    return 'The run reaches compilation and sometimes execution, but it is not yet converting those programs into full test passes.';
+  }
+  if (num(m.pass_rate) > 0 && num(m.test_pass_rate) < num(m.compile_rate)) {
+    return 'Compilation is no longer the main bottleneck. Remaining failures are dominated by semantic mistakes at execution time.';
+  }
+  if (num(m.pass_rate) > 40) {
+    return 'This run is clearing the pipeline on a meaningful slice of the dataset. Focus next on reliability and code quality regressions.';
+  }
+  return 'The run shows partial progress through the pipeline, but the final pass rate still needs headroom.';
+}
+function comparisonTakeaway(metaA, metaB) {
+  const passDelta = num(metaB.pass_rate) - num(metaA.pass_rate);
+  const compileDelta = num(metaB.compile_rate) - num(metaA.compile_rate);
+  const rewardDelta = num(metaB.avg_reward) - num(metaA.avg_reward);
+  if (passDelta <= 0 && compileDelta > 0) {
+    return 'The trained run is improving earlier pipeline stages, but that gain has not converted into final solved problems yet.';
+  }
+  if (passDelta > 0) {
+    return 'The trained run is turning upstream improvements into end-to-end solves. Inspect whether latency or style regressed as a tradeoff.';
+  }
+  if (rewardDelta > 0) {
+    return 'Reward improved without a pass-rate win. That usually means better partial credit, not yet a benchmark-level quality jump.';
+  }
+  return 'The comparison does not show a clear topline win. Inspect stage migration and per-problem deltas before drawing conclusions.';
+}
+function renderCluster(containerId, title, copy, defs) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const cards = defs.map(([label, value]) => {
+    const isNa = value == null;
+    return `<div class="card"><div class="card-label">${label}</div><div class="card-value${isNa ? ' na' : ''}">${isNa ? 'N/A' : value}</div></div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="metric-cluster-header">
+      <div class="metric-cluster-title">${title}</div>
+      <div class="metric-cluster-copy">${copy}</div>
+    </div>
+    <div class="cards">${cards}</div>`;
+}
+
+function computePercentile(vals, p) {
+  if (!vals.length) return null;
+  const s = [...vals].sort((a,b) => a-b);
+  if (s.length === 1) return s[0];
+  const rank = (p/100) * (s.length-1);
+  const lo = Math.floor(rank), hi = Math.ceil(rank);
+  return s[lo] + (rank-lo) * (s[hi]-s[lo]);
+}
+
+function buildHistogram(values, bins, min, max) {
+  const counts = new Array(bins).fill(0);
+  const range = max - min;
+  for (const v of values) {
+    const idx = Math.min(Math.floor((v - min) / range * bins), bins - 1);
+    counts[idx] += 1;
+  }
+  return counts;
+}
+
+// Pipeline rank for stage progression
+const PIPELINE = ['degenerate','type_check','compile','execution','pass'];
+function stageRank(s) {
+  if (!s) return PIPELINE.indexOf('pass');
+  const prefix = s.split(':')[0];
+  const idx = PIPELINE.indexOf(prefix);
+  return idx >= 0 ? idx : -1;
+}
+function resolvedStage(rec) {
+  if ((rec?.total_reward || 0) >= 1.0) return 'pass';
+  if (rec?.failure_stage) return rec.failure_stage;
+  if ((rec?.test_score || 0) > 0) return 'execution:partial';
+  if ((rec?.compile_score || 0) > 0) return 'compile:partial';
+  if ((rec?.type_score || 0) > 0) return 'type_check:partial';
+  return 'unknown';
+}
+
+function abbreviateStage(s) {
+  const abbrevs = {
+    'compile': 'comp',
+    'compile:partial': 'comp:partial',
+    'compile:timeout': 'comp:timeout',
+    'compile:unbound_module': 'comp:unbound_module',
+    'compile:unbound_value': 'comp:unbound_value',
+
+    'execution:partial': 'exec:partial',
+    'execution:test_fail': 'exec:test_fail',
+    'execution:timeout': 'exec:timeout',
+    'execution:exception': 'exec:exception',
+
+    'type_check:partial': 'tc:partial',
+    'type_check:syntax': 'tc:syntax',
+    'type_check:type': 'tc:type',
+    'type_check:timeout': 'tc:timeout',
+
+    'degenerate:repetitive': 'deg:repetitive',
+    'degenerate:empty': 'deg:empty',
+    'degenerate:low_code_ratio': 'deg:low_code_ratio',
+    'degenerate:code_block_spam': 'deg:code_block_spam',
+    'degenerate:stub': 'deg:stub',
+
+    'generation_error': 'gen:error',
+    'pass': 'pass',
+    'unknown': 'unknown',
+    'style': 'style',
+  };
+  return abbrevs[s] || s;
+}
+
+function diffBadge(d) {
+  if (!d) return '';
+  const cls = d === 'easy' ? 'badge-easy' : d === 'medium' ? 'badge-medium' : d === 'hard' ? 'badge-hard' : 'badge-unchanged';
+  return `<span class="badge ${cls}">${d}</span>`;
+}
+
+function statBadges(rec) {
+  const badges = [
+    `Time: ${fmt(rec.generation_time_sec,2)}s`,
+    `Length: ${rec.completion_length || 0}`,
+    `Tokens: ${rec.total_tokens || 'N/A'}`,
+    `Tok/s: ${fmt(rec.tokens_per_sec,1)}`,
+  ];
+  return `<div class="stat-badges">${badges.map(b => `<span class="stat-badge">${b}</span>`).join('')}</div>`;
+}
+
+// ─── DASHBOARD MODE ───
+function renderDashboard(data) {
+  destroyCharts();
+  const { meta, records, fileName } = data;
+  const m = meta || computeMetaFromRecords(records);
+  const confidence = confidenceInfo(m.total || records.length);
+  const promptTotal = (m.total_prompt_tokens || 0) + (m.total_completion_tokens || 0);
+
+  app.innerHTML = `
+    <div class="dashboard" id="dashboard">
+      <section class="run-hero">
+        <div class="run-hero-main">
+          <div class="kicker">Single-run dashboard</div>
+          <h2>${escHtml(m.model || fileName || 'Evaluation run')}</h2>
+          <div class="run-hero-meta">
+            <span class="run-chip">${escHtml(m.dataset || 'Dataset unknown')}</span>
+            <span class="run-chip">${escHtml(m.run_id || fileName || 'No run id')}</span>
+            <span class="run-chip">${escHtml(m.timestamp || 'No timestamp')}</span>
+            <span class="confidence-chip ${confidence.cls}">${confidence.label}</span>
+          </div>
+          <div class="run-hero-summary">${runTakeaway(m)}</div>
+        </div>
+        <div class="run-hero-side">
+          <div class="signal-card">
+            <div class="signal-card-label">Solved</div>
+            <div class="signal-card-value">${m.passed || 0} / ${m.total || records.length}</div>
+            <div class="signal-card-copy">${fmtPct(m.pass_rate)} pass rate with ${fmtPct(m.compile_rate)} reaching compilation.</div>
+          </div>
+          <div class="signal-card">
+            <div class="signal-card-label">Runtime profile</div>
+            <div class="signal-card-value">${m.p50_gen_time != null ? fmt(m.p50_gen_time, 2) + 's' : 'N/A'}</div>
+            <div class="signal-card-copy">Median latency. Total observed tokens: ${promptTotal ? promptTotal.toLocaleString() : 'N/A'}.</div>
+          </div>
+        </div>
+      </section>
+      <div class="metric-cluster" id="dashCardsPrimary"></div>
+      <div class="metric-cluster" id="dashCardsSecondary"></div>
+      <div class="charts-grid" id="dashCharts"></div>
+      <div class="section" id="failureSection"></div>
+      <div class="section" id="configSection"></div>
+      <div class="problem-list-section" id="problemList"></div>
+    </div>`;
+
+  const primaryDefs = [
+    ['Total', m.total],
+    ['Pass@1', fmtPct(m.pass_rate)],
+    ['Type Check', fmtPct(m.type_check_rate)],
+    ['Compile', fmtPct(m.compile_rate)],
+    ['Test Pass', fmtPct(m.test_pass_rate)],
+    ['Avg Reward', fmt(m.avg_reward, 3)],
+  ];
+  const secondaryDefs = [
+    ['Avg Gen Time', m.avg_gen_time != null ? fmt(m.avg_gen_time, 2) + 's' : null],
+    ['P50 Latency', m.p50_gen_time != null ? fmt(m.p50_gen_time, 2) + 's' : null],
+    ['P90 Latency', m.p90_gen_time != null ? fmt(m.p90_gen_time, 2) + 's' : null],
+    ['Tokens/sec', m.avg_tokens_per_sec != null ? fmt(m.avg_tokens_per_sec, 1) : null],
+    ['Total Tokens', m.total_prompt_tokens != null ? ((m.total_prompt_tokens||0)+(m.total_completion_tokens||0)).toLocaleString() : null],
+    ['Avg Length', m.avg_completion_length != null ? Math.round(m.avg_completion_length) : null],
+    ['Imperative', m.imperative_ratio != null ? (m.imperative_ratio*100).toFixed(1) + '%' : null],
+  ];
+  renderCluster('dashCardsPrimary', 'Core quality', 'Topline success and where the pipeline is breaking.', primaryDefs);
+  renderCluster('dashCardsSecondary', 'Behavior and cost', 'Latency, token use, output size, and style heuristics.', secondaryDefs);
+
+  // Charts
+  const buildCharts = () => {
+    destroyCharts();
+    const c = chartColors();
+    const chartsEl = document.getElementById('dashCharts');
+    if (!chartsEl) return;
+    chartsEl.innerHTML = '';
+
+    // Failure stage doughnut
+    const failStages = m.failure_stages || computeFailureStages(records);
+    if (failStages && Object.keys(failStages).length) {
+      const labels = Object.keys(failStages).sort((a,b) => failStages[b]-failStages[a]);
+      const vals = labels.map(l => failStages[l]);
+      const colors = [c.red, c.peach, c.yellow, c.mauve, c.blue, c.teal, c.pink, c.green];
+      addChart(chartsEl, 'Failure Stages', cv => makeChart(cv, {
+        type: 'doughnut', data: { labels, datasets: [{ data: vals, backgroundColor: colors.slice(0, labels.length) }] },
+        options: { plugins: { legend: { position: 'right' } } }
+      }));
+    }
+
+    // Difficulty bar
+    const diffStats = m.difficulty_stats || computeDifficultyStats(records);
+    if (diffStats && Object.keys(diffStats).length) {
+      const dLabels = Object.keys(diffStats);
+      const passed = dLabels.map(d => diffStats[d].passed);
+      const failed = dLabels.map(d => diffStats[d].total - diffStats[d].passed);
+      addChart(chartsEl, 'Pass Rate by Difficulty', cv => makeChart(cv, {
+        type: 'bar', data: { labels: dLabels, datasets: [
+          { label: 'Passed', data: passed, backgroundColor: c.green },
+          { label: 'Failed', data: failed, backgroundColor: c.red },
+        ]}, options: { scales: { x: {stacked:true}, y: {stacked:true} } }
+      }));
+    }
+
+    // Reward distribution
+    const rewards = records.map(r => r.total_reward).filter(v => v != null);
+    if (rewards.length) {
+      const bins = 20;
+      const hist = buildHistogram(rewards, bins, 0, 1.01);
+      const labels = Array.from({length:bins}, (_,i) => (i/bins).toFixed(2));
+      addChart(chartsEl, 'Reward Distribution', cv => makeChart(cv, {
+        type: 'bar', data: { labels, datasets: [{ label: 'Count', data: hist, backgroundColor: c.blue }] },
+        options: { scales: { x: {}, y: {} }, plugins: { legend: { display: false } } }
+      }));
+    }
+
+    // Completion length distribution
+    const lengths = records.map(r => r.completion_length).filter(v => v != null && v > 0);
+    if (lengths.length) {
+      const binSize = 50, maxLen = 2000;
+      const numBins = Math.floor(maxLen/binSize)+1;
+      const hist = new Array(numBins).fill(0);
+      for (const l of lengths) { hist[Math.min(Math.floor(l/binSize), numBins-1)]++; }
+      const labels = Array.from({length:numBins}, (_,i) => i < numBins-1 ? `${i*binSize}` : `${maxLen}+`);
+      addChart(chartsEl, 'Completion Length Distribution', cv => makeChart(cv, {
+        type: 'bar', data: { labels, datasets: [{ label: 'Count', data: hist, backgroundColor: c.mauve }] },
+        options: { scales: { x: {}, y: {} }, plugins: { legend: { display: false } } }
+      }));
+    }
+
+    // Latency distribution
+    const genTimes = records.map(r => r.generation_time_sec).filter(v => v != null && v > 0);
+    if (genTimes.length > 2) {
+      const maxT = Math.min(computePercentile(genTimes, 99) * 1.2, 30);
+      const bins = 20;
+      const hist = buildHistogram(genTimes.filter(t => t <= maxT), bins, 0, maxT);
+      const labels = Array.from({length:bins}, (_,i) => (i*maxT/bins).toFixed(1));
+      addChart(chartsEl, 'Latency Distribution (s / ms)', cv => makeChart(cv, {
+        type: 'bar', data: { labels, datasets: [{ label: 'Count', data: hist, backgroundColor: c.teal }] },
+        options: { scales: { x: {}, y: {} }, plugins: { legend: { display: false } } }
+      }));
+    }
+
+    // Token scatter
+    const tokenRecords = records.filter(r => r.prompt_tokens != null && r.completion_tokens != null);
+    if (tokenRecords.length > 2) {
+      const passData = tokenRecords.filter(r => r.total_reward >= 1.0).map(r => ({x: r.prompt_tokens, y: r.completion_tokens}));
+      const failData = tokenRecords.filter(r => r.total_reward < 1.0).map(r => ({x: r.prompt_tokens, y: r.completion_tokens}));
+      addChart(chartsEl, 'Token Usage (Prompt vs Completion)', cv => makeChart(cv, {
+        type: 'scatter', data: { datasets: [
+          { label: 'Pass', data: passData, backgroundColor: c.green+'88', pointRadius: 3 },
+          { label: 'Fail', data: failData, backgroundColor: c.red+'88', pointRadius: 3 },
+        ]}, options: { scales: { x: { title: { display: true, text: 'Prompt Tokens', color: c.sub } }, y: { title: { display: true, text: 'Completion Tokens', color: c.sub } } } }
+      }));
+    }
+  };
+
+  buildCharts();
+  window._currentChartBuilder = buildCharts;
+
+  // Failure stage table
+  const failStages = m.failure_stages || computeFailureStages(records);
+  if (failStages && Object.keys(failStages).length) {
+    const fSection = document.getElementById('failureSection');
+    const sorted = Object.entries(failStages).sort((a,b) => b[1]-a[1]);
+    fSection.innerHTML = makeCollapsible('Failure Stage Breakdown', `
+      <table class="data-table"><thead><tr><th>Stage</th><th>Count</th><th>%</th></tr></thead><tbody>
+      ${sorted.map(([s,cnt]) => `<tr><td>${s}</td><td>${cnt}</td><td>${(cnt/m.total*100).toFixed(1)}%</td></tr>`).join('')}
+      </tbody></table>`, false);
+  }
+
+  // Config/metadata table
+  const cfgSection = document.getElementById('configSection');
+  const cfgRows = [
+    ['Model', m.model], ['Dataset', m.dataset], ['Run ID', m.run_id],
+    ['Timestamp', m.timestamp], ['Total Problems', m.total],
+    ['Confidence', confidence.label],
+  ];
+  cfgSection.innerHTML = makeCollapsible('Run Configuration', `
+    <table class="data-table"><tbody>
+    ${cfgRows.map(([k,v]) => `<tr><td>${k}</td><td>${v || 'N/A'}</td></tr>`).join('')}
+    </tbody></table>`, false);
+
+  // Problem list
+  renderDashboardProblemList(records);
+}
+
+function addChart(container, title, builder) {
+  const div = document.createElement('div');
+  div.className = 'chart-card';
+  div.innerHTML = `<h3>${title}</h3><canvas></canvas>`;
+  container.appendChild(div);
+  builder(div.querySelector('canvas'));
+}
+
+function makeCollapsible(title, bodyHtml, open=false) {
+  return `
+    <div class="section-header${open?'':' collapsed'}" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('hidden')">
+      ${title} <span class="arrow">▼</span>
+    </div>
+    <div class="section-body${open?'':' hidden'}">${bodyHtml}</div>`;
+}
+
+function makeStaticSection(title, bodyHtml) {
+  return `
+    <div class="section-header static">${title}</div>
+    <div class="section-body static">${bodyHtml}</div>`;
+}
+
+function renderDashboardProblemList(records) {
+  const container = document.getElementById('problemList');
+  container.innerHTML = '<h3 style="margin-bottom:12px">Problems</h3>';
+  // Render in batches
+  let idx = 0;
+  const BATCH = 50;
+  function renderBatch() {
+    const end = Math.min(idx + BATCH, records.length);
+    const frag = document.createDocumentFragment();
+    for (; idx < end; idx++) {
+      const r = records[idx];
+      const item = document.createElement('div');
+      item.className = 'problem-item';
+      const passed = r.total_reward >= 1.0;
+      const stage = resolvedStage(r);
+      const stageLabel = !passed ? ` | ${stage}` : '';
+      const impLabel = r.uses_imperative ? ' <span class="badge badge-imperative">imperative</span>' : '';
+      item.innerHTML = `
+        <div class="problem-item-header" onclick="this.nextElementSibling.classList.toggle('hidden');lazyHighlight(this.nextElementSibling)">
+          <span>${r.id} ${diffBadge(r.difficulty)} ${impLabel}</span>
+          <span style="color:${passed?'var(--green)':'var(--red)'}">${passed?'PASS':'FAIL'} (${fmt(r.total_reward,2)})${stageLabel}</span>
+        </div>
+        <div class="problem-item-body hidden">
+          <details><summary>Problem</summary><div class="detail-problem">${escHtml(r.problem_text||'')}</div></details>
+          <details><summary>Tests</summary><div class="detail-tests">${escHtml(r.tests||'')}</div></details>
+          <details><summary>Generated Code</summary>
+            ${statBadges(r)}
+            <div class="code-block"><pre><code class="language-ocaml needs-highlight">${escHtml(r.full_completion||r.raw_completion||'')}</code></pre></div>
+          </details>
+        </div>`;
+      frag.appendChild(item);
+    }
+    container.appendChild(frag);
+    if (idx < records.length) requestAnimationFrame(renderBatch);
+  }
+  requestAnimationFrame(renderBatch);
+}
+
+function lazyHighlight(el) {
+  const codes = el.querySelectorAll('code.needs-highlight');
+  codes.forEach(c => { hljs.highlightElement(c); c.classList.remove('needs-highlight'); });
+}
+
+// ─── Helpers for computing from records when meta is missing ───
+function computeFailureStages(records) {
+  const stages = {};
+  records.forEach(r => {
+    const stage = resolvedStage(r);
+    if (stage && stage !== 'pass') stages[stage] = (stages[stage] || 0) + 1;
+  });
+  return stages;
+}
+function computeDifficultyStats(records) {
+  const stats = {};
+  records.forEach(r => {
+    const d = r.difficulty || 'unknown';
+    if (!stats[d]) stats[d] = { total: 0, passed: 0 };
+    stats[d].total++;
+    if (r.total_reward >= 1.0) stats[d].passed++;
+  });
+  return stats;
+}
+function computeMetaFromRecords(records) {
+  const total = records.length;
+  const passed = records.filter(r => r.total_reward >= 1.0).length;
+  const typePass = records.filter(r => r.type_score >= 0.25).length;
+  const compiles = records.filter(r => r.compile_score >= 0.1).length;
+  const testsPass = records.filter(r => r.test_score >= 0.65).length;
+  const genTimes = records.map(r => r.generation_time_sec).filter(v => v > 0);
+  const tps = records.map(r => r.tokens_per_sec).filter(v => v != null);
+  const lengths = records.map(r => r.completion_length).filter(v => v > 0);
+  const impCount = records.filter(r => r.uses_imperative).length;
+  return {
+    total, passed,
+    pass_rate: total ? passed/total*100 : 0,
+    type_check_rate: total ? typePass/total*100 : 0,
+    compile_rate: total ? compiles/total*100 : 0,
+    test_pass_rate: total ? testsPass/total*100 : 0,
+    avg_reward: total ? records.reduce((s,r) => s+r.total_reward, 0)/total : 0,
+    avg_gen_time: genTimes.length ? genTimes.reduce((a,b)=>a+b,0)/genTimes.length : null,
+    p50_gen_time: computePercentile(genTimes, 50),
+    p90_gen_time: computePercentile(genTimes, 90),
+    avg_tokens_per_sec: tps.length ? tps.reduce((a,b)=>a+b,0)/tps.length : null,
+    total_prompt_tokens: records.some(r=>r.prompt_tokens!=null) ? records.reduce((s,r)=>s+(r.prompt_tokens||0),0) : null,
+    total_completion_tokens: records.some(r=>r.completion_tokens!=null) ? records.reduce((s,r)=>s+(r.completion_tokens||0),0) : null,
+    avg_completion_length: lengths.length ? lengths.reduce((a,b)=>a+b,0)/lengths.length : null,
+    imperative_ratio: total ? impCount/total : null,
+    failure_stages: computeFailureStages(records),
+    difficulty_stats: computeDifficultyStats(records),
+    model: records[0]?.model, dataset: null, run_id: records[0]?.run_id, timestamp: records[0]?.timestamp,
+  };
+}
+
+
+// ─── COMPARISON MODE ───
+function renderComparison(dataA, dataB) {
+  destroyCharts();
+  window._currentChartBuilder = null;
+
+  const metaA = dataA.meta || computeMetaFromRecords(dataA.records);
+  const metaB = dataB.meta || computeMetaFromRecords(dataB.records);
+  const confidence = confidenceInfo(Math.min(metaA.total || dataA.records.length, metaB.total || dataB.records.length));
+  const recsA = dataA.records, recsB = dataB.records;
+  const byIdA = Object.fromEntries(recsA.map(r=>[r.id,r]));
+  const byIdB = Object.fromEntries(recsB.map(r=>[r.id,r]));
+  const commonIds = Object.keys(byIdA).filter(id => id in byIdB);
+
+  // Build index for sidebar
+  const index = commonIds.map(id => {
+    const a = byIdA[id], b = byIdB[id];
+    const rd = (b.total_reward||0) - (a.total_reward||0);
+    const aPass = a.total_reward >= 1.0, bPass = b.total_reward >= 1.0;
+    const stageA = resolvedStage(a), stageB = resolvedStage(b);
+    const rankA = stageRank(stageA), rankB = stageRank(stageB);
+    let change = 'unchanged';
+    if (bPass && !aPass) change = 'improved';
+    else if (aPass && !bPass) change = 'regressed';
+    let progression = 'same';
+    if (rankB > rankA) progression = 'progressed';
+    else if (rankB < rankA) progression = 'regressed_stage';
+    return {
+      id, difficulty: a.difficulty || b.difficulty || '',
+      rewardDelta: rd, change, progression,
+      stageA, stageB,
+      impA: !!a.uses_imperative, impB: !!b.uses_imperative,
+      genTimeDelta: (b.generation_time_sec||0) - (a.generation_time_sec||0),
+      lengthDelta: (b.completion_length||0) - (a.completion_length||0),
+    };
+  });
+
+  // Counts
+  const progressed = index.filter(e => e.progression === 'progressed').length;
+  const regressedStageCount = index.filter(e => e.progression === 'regressed_stage').length;
+  const sameStageCount = index.filter(e => e.progression === 'same').length;
+
+  app.innerHTML = `
+    <div class="summary-bar">
+      <div class="summary-grid">
+        <div class="summary-panel">
+          <div class="summary-panel-label">Base run</div>
+          <div class="summary-panel-title">${escHtml(metaA.model || metaA.run_id || dataA.fileName)}</div>
+          <div class="summary-panel-copy">${fmtPct(metaA.pass_rate)} pass, ${fmtPct(metaA.compile_rate)} compile, ${fmt(metaA.avg_reward, 3)} avg reward.</div>
+        </div>
+        <div class="summary-panel">
+          <div class="summary-panel-label">Trained run</div>
+          <div class="summary-panel-title">${escHtml(metaB.model || metaB.run_id || dataB.fileName)}</div>
+          <div class="summary-panel-copy">${fmtPct(metaB.pass_rate)} pass, ${fmtPct(metaB.compile_rate)} compile, ${fmt(metaB.avg_reward, 3)} avg reward.</div>
+        </div>
+      </div>
+      <div class="summary-line">
+        <span class="summary-item"><span class="label">Compared:</span> ${commonIds.length}</span>
+        <span class="summary-item"><span class="label">Pass Δ:</span> <span style="color:${num(metaB.pass_rate) >= num(metaA.pass_rate) ? 'var(--green)' : 'var(--red)'}">${fmtSigned(num(metaB.pass_rate) - num(metaA.pass_rate), 1, '%')}</span></span>
+        <span class="summary-item"><span class="label">Compile Δ:</span> <span style="color:${num(metaB.compile_rate) >= num(metaA.compile_rate) ? 'var(--green)' : 'var(--red)'}">${fmtSigned(num(metaB.compile_rate) - num(metaA.compile_rate), 1, '%')}</span></span>
+        <span class="summary-item"><span class="label">Avg reward Δ:</span> <span style="color:${num(metaB.avg_reward) >= num(metaA.avg_reward) ? 'var(--green)' : 'var(--red)'}">${fmtSigned(num(metaB.avg_reward) - num(metaA.avg_reward), 3)}</span></span>
+        <span class="summary-item" style="color:var(--green)">↑ ${progressed} progressed</span>
+        <span class="summary-item" style="color:var(--red)">↓ ${regressedStageCount} regressed</span>
+        <span class="summary-item" style="color:var(--sub)">→ ${sameStageCount} same</span>
+      </div>
+    </div>
+    <div class="compare-tabs" id="compareTabs">
+      <div class="compare-tab active" data-tab="aggregate">Overview</div>
+      <div class="compare-tab" data-tab="grpo">GRPO Training Impact</div>
+      <div class="compare-tab" data-tab="problems">In-depth Analysis</div>
+    </div>
+    <div id="compareContent"></div>`;
+
+  // Tab switching
+  const tabs = document.querySelectorAll('.compare-tab');
+  let currentTab = 'aggregate';
+  tabs.forEach(t => t.onclick = () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    currentTab = t.dataset.tab;
+    renderCompareTab(currentTab);
+  });
+
+  function renderCompareTab(tab) {
+    destroyCharts();
+    window._currentChartBuilder = null;
+    const content = document.getElementById('compareContent');
+    if (tab === 'problems') renderProblemsTab(content, index, byIdA, byIdB, metaA, metaB);
+    else if (tab === 'aggregate') renderAggregateTab(content, metaA, metaB, recsA, recsB, index);
+    else if (tab === 'grpo') renderGRPOTab(content, metaA, metaB, recsA, recsB, index);
+  }
+
+  renderCompareTab('aggregate');
+}
+
+// ─── Problems Tab ───
+function renderProblemsTab(container, index, byIdA, byIdB, metaA, metaB) {
+  container.innerHTML = `
+    <div class="problems-shell">
+      <div class="problems-filters">
+        <div class="filters-header">
+          <input type="text" id="searchInput" placeholder="Search by ID...">
+          <div class="filters-dropdowns">
+            <select id="filterDifficulty"><option value="">All difficulties</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>
+            <select id="filterChange"><option value="">All changes</option><option value="improved">Improved</option><option value="regressed">Regressed</option><option value="both_pass">Both pass</option><option value="both_fail">Both fail</option></select>
+            <select id="filterStageB"><option value="">Trained stage</option></select>
+            <select id="filterStageA"><option value="">Base stage</option></select>
+            <select id="filterProgression"><option value="">Progression</option><option value="progressed">Progressed</option><option value="regressed_stage">Regressed (stage)</option><option value="same">Same stage</option></select>
+            <select id="filterStyle"><option value="">Style</option><option value="became_imperative">Became imperative</option><option value="became_functional">Became functional</option><option value="both_imperative">Both imperative</option><option value="both_functional">Both functional</option></select>
+            <select id="sortBy"><option value="abs_reward_delta">Sort: |Reward Δ|</option><option value="reward_delta">Reward Δ</option><option value="latency_delta">Latency Δ</option><option value="length_delta">Length Δ</option><option value="id">ID</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="compare-layout">
+        <div class="sidebar">
+          <div class="sidebar-count" id="sidebarCount"></div>
+          <div class="sidebar-list" id="sidebarList"></div>
+        </div>
+        <div class="detail-panel empty-state" id="detailPanel">Select a problem from the sidebar</div>
+      </div>
+    </div>`;
+
+  // Populate dynamic stage filters
+  const stagesA = new Set(index.map(e => e.stageA));
+  const stagesB = new Set(index.map(e => e.stageB));
+  const selA = document.getElementById('filterStageA');
+  const selB = document.getElementById('filterStageB');
+  [...stagesA].sort().forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; selA.appendChild(o); });
+  [...stagesB].sort().forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; selB.appendChild(o); });
+
+  let debounceTimer = null;
+  const filters = container.querySelectorAll('.problems-filters select, .problems-filters input');
+  filters.forEach(f => f.addEventListener(f.tagName === 'INPUT' ? 'input' : 'change', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => renderSidebar(), 150);
+  }));
+
+  let selectedId = null;
+
+  function getFiltered() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const diff = document.getElementById('filterDifficulty').value;
+    const change = document.getElementById('filterChange').value;
+    const stA = document.getElementById('filterStageA').value;
+    const stB = document.getElementById('filterStageB').value;
+    const prog = document.getElementById('filterProgression').value;
+    const style = document.getElementById('filterStyle').value;
+    const sort = document.getElementById('sortBy').value;
+
+    let filtered = index.filter(e => {
+      if (search && !e.id.toLowerCase().includes(search)) return false;
+      if (diff && e.difficulty !== diff) return false;
+      if (change) {
+        if (change === 'both_pass' && !(e.change === 'unchanged' && e.stageB === 'pass')) return false;
+        if (change === 'both_fail' && !(e.change === 'unchanged' && e.stageB !== 'pass')) return false;
+        if (change === 'improved' && e.change !== 'improved') return false;
+        if (change === 'regressed' && e.change !== 'regressed') return false;
+      }
+      if (stA && e.stageA !== stA) return false;
+      if (stB && e.stageB !== stB) return false;
+      if (prog && e.progression !== prog) return false;
+      if (style) {
+        if (style === 'became_imperative' && !(e.impA === false && e.impB === true)) return false;
+        if (style === 'became_functional' && !(e.impA === true && e.impB === false)) return false;
+        if (style === 'both_imperative' && !(e.impA && e.impB)) return false;
+        if (style === 'both_functional' && !(!e.impA && !e.impB)) return false;
+      }
+      return true;
+    });
+
+    // Sort
+    if (sort === 'abs_reward_delta') filtered.sort((a,b) => Math.abs(b.rewardDelta) - Math.abs(a.rewardDelta));
+    else if (sort === 'reward_delta') filtered.sort((a,b) => b.rewardDelta - a.rewardDelta);
+    else if (sort === 'latency_delta') filtered.sort((a,b) => Math.abs(b.genTimeDelta) - Math.abs(a.genTimeDelta));
+    else if (sort === 'length_delta') filtered.sort((a,b) => Math.abs(b.lengthDelta) - Math.abs(a.lengthDelta));
+    else filtered.sort((a,b) => a.id.localeCompare(b.id));
+
+    return filtered;
+  }
+
+  function renderSidebar() {
+    const filtered = getFiltered();
+    document.getElementById('sidebarCount').textContent = `Showing ${filtered.length} of ${index.length}`;
+    const listEl = document.getElementById('sidebarList');
+    listEl.innerHTML = '';
+    let idx = 0;
+    const BATCH = 50;
+    function batch() {
+      const end = Math.min(idx + BATCH, filtered.length);
+      const frag = document.createDocumentFragment();
+      for (; idx < end; idx++) {
+        const e = filtered[idx];
+        const item = document.createElement('div');
+        item.className = 'sidebar-item' + (e.id === selectedId ? ' active' : '');
+        const deltaCls = e.rewardDelta > 0.01 ? 'positive' : e.rewardDelta < -0.01 ? 'negative' : 'zero';
+        const changeBadge = e.change === 'improved' ? '<span class="badge badge-improved">↑</span>' :
+                            e.change === 'regressed' ? '<span class="badge badge-regressed">↓</span>' :
+                            '<span class="badge badge-unchanged">—</span>';
+        const stageTransition = e.stageA !== e.stageB ? `<span class="stage-transition">${e.stageA} → ${e.stageB}</span>` : '';
+        const impBadge = (e.impA || e.impB) ? '<span class="badge badge-imperative">imp</span>' : '';
+        item.innerHTML = `
+          <div class="sidebar-item-top">
+            <span class="sidebar-id">${e.id}</span>
+            <span class="sidebar-delta ${deltaCls}">${e.rewardDelta >= 0 ? '+' : ''}${e.rewardDelta.toFixed(2)}</span>
+          </div>
+          <div class="sidebar-bottom">
+            ${diffBadge(e.difficulty)} ${changeBadge} ${impBadge} ${stageTransition}
+          </div>`;
+        item.onclick = () => selectProblem(e.id);
+        frag.appendChild(item);
+      }
+      listEl.appendChild(frag);
+      if (idx < filtered.length) requestAnimationFrame(batch);
+    }
+    requestAnimationFrame(batch);
+  }
+
+  function selectProblem(id) {
+    selectedId = id;
+    // Update active class
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+      el.classList.toggle('active', el.querySelector('.sidebar-id')?.textContent === id);
+    });
+    renderDetail(id);
+  }
+
+  function renderDetail(id) {
+    const panel = document.getElementById('detailPanel');
+    const a = byIdA[id], b = byIdB[id];
+    if (!a || !b) { panel.innerHTML = '<div class="empty-state">Problem not found in both runs</div>'; return; }
+    panel.className = 'detail-panel';
+
+    const stageA = resolvedStage(a), stageB = resolvedStage(b);
+    const stageChanged = stageA !== stageB;
+    const stageArrow = stageChanged ? `<div style="text-align:center;padding:8px;font-size:0.9rem;color:var(--sub)">${stageA} → ${stageB}</div>` : '';
+
+    panel.innerHTML = `
+      <div class="detail-header">
+        <details><summary>${id} ${diffBadge(a.difficulty || b.difficulty)}</summary>
+          <div class="detail-problem">${escHtml(a.problem_text || b.problem_text || '')}</div>
+        </details>
+        <details><summary>Tests</summary>
+          <div class="detail-tests">${escHtml(a.tests || b.tests || '')}</div>
+        </details>
+      </div>
+      ${stageArrow}
+      <div class="side-by-side">
+        ${renderRunPanel('Base', a, b, metaA, false)}
+        ${renderRunPanel('Trained', b, a, metaB, true)}
+      </div>`;
+
+    // Lazy highlight
+    panel.querySelectorAll('code.needs-highlight').forEach(c => { hljs.highlightElement(c); c.classList.remove('needs-highlight'); });
+  }
+
+  function renderRunPanel(label, rec, other, meta, showDelta = false) {
+    const passed = rec.total_reward >= 1.0;
+    const stage = resolvedStage(rec);
+    const stageColor = passed ? 'var(--green)' : 'var(--red)';
+    const stageLabel = stage ? `<span class="badge" style="background:var(--surface1);color:${stageColor}">${stage}</span>` : '';
+    const impBadge = rec.uses_imperative ? `<span class="badge badge-imperative">imperative${rec.uses_imperative !== other.uses_imperative ? ' ⚠️' : ''}</span>` : '';
+
+    // Score pills — deltas only shown on the Trained panel (delta = trained - base)
+    const scores = ['type_score','compile_score','test_score','total_reward'];
+    const scoreLabels = ['Type','Compile','Tests','Total'];
+    const pills = scores.map((s, i) => {
+      const v = rec[s], ov = other[s];
+      let deltaHtml = '';
+      if (showDelta) {
+        const d = v != null && ov != null ? v - ov : null;
+        deltaHtml = d != null && Math.abs(d) > 0.001 ?
+          `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d.toFixed(2)}</span>` : '';
+      }
+      return `<span class="score-pill">${scoreLabels[i]}: ${fmt(v,2)} ${deltaHtml}</span>`;
+    }).join('');
+
+    const stats = [
+      `Time: ${fmt(rec.generation_time_sec,2)}s`,
+      `Length: ${rec.completion_length || 0}`,
+      `Tok/s: ${fmt(rec.tokens_per_sec,1)}`,
+    ].map(b => `<span class="score-pill">${b}</span>`).join('');
+
+    return `
+      <div class="run-panel">
+        <h3>${label} — ${meta.model || 'Unknown'}</h3>
+        <div class="score-pills">${pills} ${stageLabel} ${impBadge} ${stats}</div>
+        <div class="code-block"><pre><code class="language-ocaml needs-highlight">${escHtml(rec.full_completion||rec.raw_completion||'')}</code></pre></div>
+      </div>`;
+  }
+
+  renderSidebar();
+}
+
+
+// ─── Aggregate Tab ───
+function renderAggregateTab(container, metaA, metaB, recsA, recsB, index) {
+  const c = chartColors();
+  container.innerHTML = '<div class="agg-section" id="aggContent"></div>';
+  const agg = document.getElementById('aggContent');
+
+  const latA = recsA.map(r => r.generation_time_sec).filter(v => v > 0);
+  const latB = recsB.map(r => r.generation_time_sec).filter(v => v > 0);
+  const p50A = metaA.p50_gen_time ?? computePercentile(latA, 50);
+  const p50B = metaB.p50_gen_time ?? computePercentile(latB, 50);
+  const p99A = metaA.p99_gen_time ?? computePercentile(latA, 99);
+  const p99B = metaB.p99_gen_time ?? computePercentile(latB, 99);
+
+  const row1 = [
+    ['Pass Rate', metaA.pass_rate, metaB.pass_rate, true],
+    ['Avg Reward', metaA.avg_reward, metaB.avg_reward, false],
+    ['Type Check', metaA.type_check_rate, metaB.type_check_rate, true],
+    ['Compile', metaA.compile_rate, metaB.compile_rate, true],
+    ['Test Pass', metaA.test_pass_rate, metaB.test_pass_rate, true],
+  ];
+  const row2 = [
+    ['Tokens/sec', metaA.avg_tokens_per_sec, metaB.avg_tokens_per_sec, false],
+    ['Avg Completion Length', metaA.avg_completion_length, metaB.avg_completion_length, false],
+    ['P50 Latency', p50A, p50B, false],
+    ['P99 Latency', p99A, p99B, false],
+  ];
+  const row3 = [
+    ['Avg TPR', metaA.avg_tpr, metaB.avg_tpr, false],
+  ];
+
+  function metricCard(label, a, b, pct) {
+    const delta = fmtDelta(a, b, pct);
+    const bStr = b != null ? (pct ? fmtPct(b) : fmt(b, 2)) : 'N/A';
+    return `<div class="card"><div class="card-label">${label}</div>
+      <div class="card-value">${bStr}</div>
+      <div class="card-delta ${delta.cls}">Δ ${delta.text}</div></div>`;
+  }
+
+  let cardsHtml = '';
+  cardsHtml += `<div class="cards" style="padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));">${row1.map(([l,a,b,p]) => metricCard(l,a,b,p)).join('')}</div>`;
+  cardsHtml += `<div class="cards" style="padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:12px;">${row2.map(([l,a,b,p]) => metricCard(l,a,b,p)).join('')}</div>`;
+  cardsHtml += `<div class="cards" style="padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:12px;">${row3.map(([l,a,b,p]) => metricCard(l,a,b,p)).join('')}</div>`;
+  agg.innerHTML = cardsHtml;
+
+  // Stage migration matrix — bubble matrix (all transitions retained)
+  const migration = computeStageMigration(recsA, recsB);
+  if (Object.keys(migration).length) {
+    const allStages = [...new Set([...Object.keys(migration), ...Object.values(migration).flatMap(m => Object.keys(m))])].sort();
+    // Prune: only keep rows/cols that appear at least once
+    const activeRows = allStages.filter(r => allStages.some(c => (migration[r]||{})[c]));
+    const activeCols = allStages.filter(c => allStages.some(r => (migration[r]||{})[c]));
+
+    const rankMap = Object.fromEntries(allStages.map(s => [s, stageRank(s)]));
+
+    let matrixHtml = '<table class="data-table matrix-compact"><thead><tr><th>Base ↓ / Trained →</th>';
+    activeCols.forEach(col => { matrixHtml += `<th title="${col}">${abbreviateStage(col)}</th>`; });
+    matrixHtml += '</tr></thead><tbody>';
+    activeRows.forEach(row => {
+      matrixHtml += `<tr><td><strong>${abbreviateStage(row)}</strong></td>`;
+      activeCols.forEach(col => {
+        const val = (migration[row]||{})[col]||0;
+        let color = 'var(--sub)';
+        if (val > 0) {
+          const rr = rankMap[row] ?? -1;
+          const rc = rankMap[col] ?? -1;
+          if (rc > rr) color = 'var(--green)';
+          else if (rc < rr) color = 'var(--red)';
+          else color = 'var(--blue)';
+        }
+        matrixHtml += `<td style="text-align:center;font-weight:600;color:${color}" title="${row} → ${col}: ${val}">${val}</td>`;
+      });
+      matrixHtml += '</tr>';
+    });
+    matrixHtml += '</tbody></table>';
+    matrixHtml += `<div style="margin-top:6px;font-size:0.72rem;color:var(--sub);display:flex;gap:10px;">
+      <span style="color:var(--green)">progressed</span>
+      <span style="color:var(--red)">regressed</span>
+      <span style="color:var(--blue)">same stage</span>
+    </div>`;
+
+    // Store matrix HTML for paired rendering below
+    var _matrixHtml = matrixHtml;
+  }
+
+  // Per-difficulty deltas
+  const diffDeltas = computePerDifficultyDeltas(recsA, recsB);
+  let _diffTableHtml = '';
+  if (Object.keys(diffDeltas).length) {
+    _diffTableHtml = '<table class="data-table"><thead><tr><th>Difficulty</th><th>Base Pass%</th><th>Trained Pass%</th><th>Δ</th><th>Count</th></tr></thead><tbody>';
+    for (const [diff, d] of Object.entries(diffDeltas)) {
+      const deltaColor = d.delta > 0 ? 'var(--green)' : d.delta < 0 ? 'var(--red)' : 'inherit';
+      _diffTableHtml += `<tr><td>${diff}</td><td>${fmtPct(d.pass_rate_a)}</td><td>${fmtPct(d.pass_rate_b)}</td><td style="color:${deltaColor}">${d.delta != null ? (d.delta>0?'+':'') + d.delta.toFixed(1) + '%' : 'N/A'}</td><td>${d.count_a}/${d.count_b}</td></tr>`;
+    }
+    _diffTableHtml += '</tbody></table>';
+  }
+
+  // Render matrix + per-difficulty side by side
+  if (typeof _matrixHtml !== 'undefined' || _diffTableHtml) {
+    let pairHtml = '<div class="section-pair">';
+    if (typeof _matrixHtml !== 'undefined') {
+      pairHtml += `<div class="section-pair-card">${makeStaticSection('Failure Stage Transition Matrix', _matrixHtml)}</div>`;
+    }
+    if (_diffTableHtml) {
+      pairHtml += `<div class="section-pair-card">${makeStaticSection('Per-Difficulty Pass Rate Δ', _diffTableHtml)}</div>`;
+    }
+    pairHtml += '</div>';
+    agg.innerHTML += pairHtml;
+  }
+
+  // Charts: score distribution overlays
+  const chartsDiv = document.createElement('div');
+  chartsDiv.className = 'charts-grid';
+  agg.appendChild(chartsDiv);
+
+  const buildAggCharts = () => {
+    destroyCharts();
+    const c = chartColors();
+    chartsDiv.innerHTML = '';
+
+    // Score overlays
+    ['type_score', 'compile_score', 'test_score', 'total_reward'].forEach(field => {
+      const valsA = recsA.map(r => r[field]).filter(v => v != null);
+      const valsB = recsB.map(r => r[field]).filter(v => v != null);
+      if (!valsA.length && !valsB.length) return;
+      const bins = 20;
+      const histA = buildHistogram(valsA, bins, 0, 1.01);
+      const histB = buildHistogram(valsB, bins, 0, 1.01);
+      const labels = Array.from({length:bins}, (_,i) => (i/bins).toFixed(2));
+      addChart(chartsDiv, `${field} Distribution`, cv => makeChart(cv, {
+        type: 'bar', data: { labels, datasets: [
+          { label: 'Base', data: histA, backgroundColor: '#b0b0b0' },
+          { label: 'Trained', data: histB, backgroundColor: '#1a1a1a' },
+        ]}, options: { scales: { x: {}, y: {} } }
+      }));
+    });
+
+    // Latency overlay
+    const timesA = recsA.map(r => r.generation_time_sec).filter(v => v > 0);
+    const timesB = recsB.map(r => r.generation_time_sec).filter(v => v > 0);
+    if (timesA.length > 2 || timesB.length > 2) {
+      const maxT = Math.min(Math.max(
+        computePercentile(timesA, 99)||5, computePercentile(timesB, 99)||5
+      ) * 1.2, 30);
+      const bins = 20;
+      const histA = buildHistogram(timesA.filter(t=>t<=maxT), bins, 0, maxT);
+      const histB = buildHistogram(timesB.filter(t=>t<=maxT), bins, 0, maxT);
+      const labels = Array.from({length:bins}, (_,i) => (i*maxT/bins).toFixed(1));
+      addChart(chartsDiv, 'Latency Distribution (s / ms)', cv => makeChart(cv, {
+        type: 'bar', data: { labels, datasets: [
+          { label: 'Base', data: histA, backgroundColor: '#b0b0b0' },
+          { label: 'Trained', data: histB, backgroundColor: '#1a1a1a' },
+        ]}, options: { scales: { x: {}, y: {} } }
+      }));
+    }
+  };
+  buildAggCharts();
+  window._currentChartBuilder = buildAggCharts;
+}
+
+
+// ─── GRPO Training Impact Tab ───
+function renderGRPOTab(container, metaA, metaB, recsA, recsB, index) {
+  container.innerHTML = '<div class="agg-section" id="grpoContent"></div>';
+  const grpo = document.getElementById('grpoContent');
+  const byIdA = Object.fromEntries(recsA.map(r=>[r.id,r]));
+  const byIdB = Object.fromEntries(recsB.map(r=>[r.id,r]));
+  const commonIds = Object.keys(byIdA).filter(id => id in byIdB);
+
+  // Imperative bias comparison
+  const impComp = computeImperativeComparison(recsA, recsB);
+  grpo.innerHTML += `<div class="section compact">${makeStaticSection('Imperative Style Bias', `
+    <div class="cards" style="padding:0">
+      <div class="card"><div class="card-label">Both Functional</div><div class="card-value">${impComp.both_functional}</div></div>
+      <div class="card"><div class="card-label">Both Imperative</div><div class="card-value">${impComp.both_imperative}</div></div>
+      <div class="card"><div class="card-label">Became Imperative ⚠️</div><div class="card-value" style="color:var(--peach)">${impComp.became_imperative}</div></div>
+      <div class="card"><div class="card-label">Became Functional</div><div class="card-value" style="color:var(--green)">${impComp.became_functional}</div></div>
+    </div>
+    <p style="margin-top:8px;font-size:0.78rem;color:var(--sub)">Heuristic detection: <code>ref</code>, <code>:=</code>, <code>!</code>, loops, <code>Array.set</code>, <code>Bytes.set</code></p>
+  `)}</div>`;
+
+  // Reward bimodality
+  const rewardsA = recsA.map(r => r.total_reward).filter(v => v != null);
+  const rewardsB = recsB.map(r => r.total_reward).filter(v => v != null);
+  const bandA = computeRewardBands(rewardsA);
+  const bandB = computeRewardBands(rewardsB);
+  grpo.innerHTML += `<div class="section compact">${makeStaticSection('Reward Bimodality Analysis', `
+    <table class="data-table">
+      <thead><tr><th>Band</th><th>Base</th><th>Trained</th><th>Δ</th></tr></thead>
+      <tbody>
+        <tr><td>Clear fail [0, 0.3)</td><td>${bandA.fail} (${bandA.failPct}%)</td><td>${bandB.fail} (${bandB.failPct}%)</td><td>${(bandB.failPct-bandA.failPct).toFixed(1)}%</td></tr>
+        <tr><td>Partial [0.3, 0.7)</td><td>${bandA.partial} (${bandA.partialPct}%)</td><td>${bandB.partial} (${bandB.partialPct}%)</td><td>${(bandB.partialPct-bandA.partialPct).toFixed(1)}%</td></tr>
+        <tr><td>Pass/near [0.7, 1.0]</td><td>${bandA.pass} (${bandA.passPct}%)</td><td>${bandB.pass} (${bandB.passPct}%)</td><td>${(bandB.passPct-bandA.passPct).toFixed(1)}%</td></tr>
+      </tbody>
+    </table>
+  `)}</div>`;
+
+  // Difficulty tier impact table
+  const diffDeltas = computeDiffTierImpact(recsA, recsB);
+  if (Object.keys(diffDeltas).length) {
+    let tableHtml = '<table class="data-table"><thead><tr><th>Difficulty</th><th>Δ Pass Rate</th><th>Δ Avg Reward</th><th>Δ Avg Length</th><th>Δ Imperative%</th></tr></thead><tbody>';
+    for (const [diff, d] of Object.entries(diffDeltas)) {
+      tableHtml += `<tr>
+        <td>${diff}</td>
+        <td style="color:${d.passRateDelta>0?'var(--green)':d.passRateDelta<0?'var(--red)':'inherit'}">${d.passRateDelta.toFixed(1)}%</td>
+        <td style="color:${d.rewardDelta>0?'var(--green)':d.rewardDelta<0?'var(--red)':'inherit'}">${d.rewardDelta.toFixed(3)}</td>
+        <td>${d.lengthDelta.toFixed(0)}</td>
+        <td style="color:${d.impDelta>0?'var(--peach)':d.impDelta<0?'var(--green)':'inherit'}">${d.impDelta.toFixed(1)}%</td>
+      </tr>`;
+    }
+    tableHtml += '</tbody></table>';
+    grpo.innerHTML += `<div class="section compact">${makeStaticSection('Difficulty Tier Impact', tableHtml)}</div>`;
+  }
+
+  // Frozen hard problems
+  const frozen = computeFrozenProblems(recsA, recsB);
+  if (frozen.length) {
+    const frozenRows = frozen.map(p => {
+      const problemPreview = (p.problem_text || '').replace(/\s+/g, ' ').trim();
+      const shortProblem = problemPreview.length > 180 ? `${problemPreview.slice(0, 180)}…` : problemPreview;
+      return `<tr>
+        <td>${p.id}</td>
+        <td>${p.difficulty || 'unknown'}</td>
+        <td title="${escHtml(problemPreview)}">${escHtml(shortProblem || 'N/A')}</td>
+        <td>${p.failure_stage || 'unknown'}</td>
+        <td>${fmt(p.reward_a, 2)} → ${fmt(p.reward_b, 2)} (Δ ${p.reward_delta >= 0 ? '+' : ''}${p.reward_delta.toFixed(2)})</td>
+      </tr>`;
+    }).join('');
+
+    grpo.innerHTML += `<div class="section compact">${makeStaticSection(`"Frozen" Problems (${frozen.length})`, `
+      <p style="margin-bottom:8px;font-size:0.85rem;color:var(--sub)">Problems where both runs fail with identical stage and reward Δ &lt; 0.05. These may need larger rollout budgets or curriculum adjustments.</p>
+      <table class="data-table">
+        <thead><tr><th>ID</th><th>Difficulty</th><th>Problem</th><th>Stage</th><th>Reward (Base → Trained)</th></tr></thead>
+        <tbody>${frozenRows}</tbody>
+      </table>
+    `)}</div>`;
+  }
+
+  // Charts
+  const chartsDiv = document.createElement('div');
+  chartsDiv.className = 'charts-grid';
+  grpo.appendChild(chartsDiv);
+
+  const buildGRPOCharts = () => {
+    destroyCharts();
+    const c = chartColors();
+    chartsDiv.innerHTML = '';
+
+    // Completion length overlay
+    const lenA = recsA.map(r => r.completion_length).filter(v => v > 0);
+    const lenB = recsB.map(r => r.completion_length).filter(v => v > 0);
+    if (lenA.length || lenB.length) {
+      const binSize = 50, maxLen = 2000;
+      const numBins = Math.floor(maxLen/binSize)+1;
+      const histA = new Array(numBins).fill(0);
+      const histB = new Array(numBins).fill(0);
+      lenA.forEach(l => histA[Math.min(Math.floor(l/binSize), numBins-1)]++);
+      lenB.forEach(l => histB[Math.min(Math.floor(l/binSize), numBins-1)]++);
+      const labels = Array.from({length:numBins}, (_,i) => i < numBins-1 ? `${i*binSize}` : `${maxLen}+`);
+      addChart(chartsDiv, 'Completion Length Distribution', cv => {
+        const chart = makeChart(cv, {
+          type: 'bar', data: { labels, datasets: [
+            { label: 'Base', data: histA, backgroundColor: '#b0b0b0' },
+            { label: 'Trained', data: histB, backgroundColor: '#1a1a1a' },
+          ]}, options: { scales: { x: {}, y: {} } }
+        });
+      });
+    }
+
+    // Reward distribution overlay with band annotations
+    if (rewardsA.length || rewardsB.length) {
+      const bins = 20;
+      const histA = buildHistogram(rewardsA, bins, 0, 1.01);
+      const histB = buildHistogram(rewardsB, bins, 0, 1.01);
+      const labels = Array.from({length:bins}, (_,i) => (i/bins).toFixed(2));
+      addChart(chartsDiv, 'Reward Distribution Overlay', cv => makeChart(cv, {
+        type: 'bar', data: { labels, datasets: [
+          { label: 'Base', data: histA, backgroundColor: '#b0b0b0' },
+          { label: 'Trained', data: histB, backgroundColor: '#1a1a1a' },
+        ]}, options: { scales: { x: {}, y: {} } }
+      }));
+    }
+
+    // Imperative ratio by difficulty
+    const impByDiff = {};
+    for (const rec of recsA) {
+      const d = rec.difficulty || 'unknown';
+      if (!impByDiff[d]) impByDiff[d] = { a: 0, aTotal: 0, b: 0, bTotal: 0 };
+      impByDiff[d].aTotal++;
+      if (rec.uses_imperative) impByDiff[d].a++;
+    }
+    for (const rec of recsB) {
+      const d = rec.difficulty || 'unknown';
+      if (!impByDiff[d]) impByDiff[d] = { a: 0, aTotal: 0, b: 0, bTotal: 0 };
+      impByDiff[d].bTotal++;
+      if (rec.uses_imperative) impByDiff[d].b++;
+    }
+    const impLabels = Object.keys(impByDiff).sort();
+    if (impLabels.length) {
+      addChart(chartsDiv, 'Imperative Ratio by Difficulty', cv => makeChart(cv, {
+        type: 'bar', data: { labels: impLabels, datasets: [
+          { label: 'Base', data: impLabels.map(d => impByDiff[d].aTotal ? impByDiff[d].a/impByDiff[d].aTotal*100 : 0), backgroundColor: '#b0b0b0' },
+          { label: 'Trained', data: impLabels.map(d => impByDiff[d].bTotal ? impByDiff[d].b/impByDiff[d].bTotal*100 : 0), backgroundColor: '#1a1a1a' },
+        ]}, options: { scales: { x: {}, y: { title: { display: true, text: '%', color: c.sub } } } }
+      }));
+    }
+  };
+  buildGRPOCharts();
+  window._currentChartBuilder = buildGRPOCharts;
+}
+
+
+// ─── JS comparison helpers ───
+function computeStageMigration(recsA, recsB) {
+  const byIdA = Object.fromEntries(recsA.map(r=>[r.id,r]));
+  const byIdB = Object.fromEntries(recsB.map(r=>[r.id,r]));
+  const migration = {};
+  for (const id of Object.keys(byIdA)) {
+    if (!(id in byIdB)) continue;
+    const sa = resolvedStage(byIdA[id]);
+    const sb = resolvedStage(byIdB[id]);
+    if (!migration[sa]) migration[sa] = {};
+    migration[sa][sb] = (migration[sa][sb]||0) + 1;
+  }
+  return migration;
+}
+
+function computePerDifficultyDeltas(recsA, recsB) {
+  const groupBy = (recs) => {
+    const g = {};
+    recs.forEach(r => { const d = r.difficulty||'unknown'; (g[d]=g[d]||[]).push(r); });
+    return g;
+  };
+  const ga = groupBy(recsA), gb = groupBy(recsB);
+  const diffs = [...new Set([...Object.keys(ga), ...Object.keys(gb)])].sort();
+  const result = {};
+  for (const d of diffs) {
+    const a = ga[d]||[], b = gb[d]||[];
+    const prA = a.length ? a.filter(r=>r.total_reward>=1).length/a.length*100 : null;
+    const prB = b.length ? b.filter(r=>r.total_reward>=1).length/b.length*100 : null;
+    result[d] = {
+      pass_rate_a: prA, pass_rate_b: prB,
+      delta: prA!=null&&prB!=null ? Math.round((prB-prA)*10)/10 : null,
+      count_a: a.length, count_b: b.length,
+    };
+  }
+  return result;
+}
+
+function computeImperativeComparison(recsA, recsB) {
+  const byIdA = Object.fromEntries(recsA.map(r=>[r.id,r]));
+  const byIdB = Object.fromEntries(recsB.map(r=>[r.id,r]));
+  let bi=0, bf=0, becImp=0, becFunc=0;
+  for (const id of Object.keys(byIdA)) {
+    if (!(id in byIdB)) continue;
+    const a = !!byIdA[id].uses_imperative, b = !!byIdB[id].uses_imperative;
+    if (a&&b) bi++; else if (!a&&!b) bf++; else if (!a&&b) becImp++; else becFunc++;
+  }
+  return { both_imperative: bi, both_functional: bf, became_imperative: becImp, became_functional: becFunc };
+}
+
+function computeFrozenProblems(recsA, recsB) {
+  const byIdA = Object.fromEntries(recsA.map(r=>[r.id,r]));
+  const byIdB = Object.fromEntries(recsB.map(r=>[r.id,r]));
+  const frozen = [];
+  for (const id of Object.keys(byIdA).sort()) {
+    if (!(id in byIdB)) continue;
+    const a = byIdA[id], b = byIdB[id];
+    if (a.total_reward >= 1 || b.total_reward >= 1) continue;
+    if (resolvedStage(a) !== resolvedStage(b)) continue;
+    const delta = b.total_reward - a.total_reward;
+    if (Math.abs(delta) < 0.05) {
+      frozen.push({
+        id,
+        difficulty: a.difficulty || b.difficulty || 'unknown',
+        problem_text: a.problem_text || b.problem_text || '',
+        failure_stage: resolvedStage(a),
+        reward_a: a.total_reward || 0,
+        reward_b: b.total_reward || 0,
+        reward_delta: delta,
+      });
+    }
+  }
+  return frozen;
+}
+
+function computeRewardBands(rewards) {
+  const total = rewards.length || 1;
+  const fail = rewards.filter(r => r < 0.3).length;
+  const partial = rewards.filter(r => r >= 0.3 && r < 0.7).length;
+  const pass = rewards.filter(r => r >= 0.7).length;
+  return {
+    fail, partial, pass,
+    failPct: (fail/total*100).toFixed(1),
+    partialPct: (partial/total*100).toFixed(1),
+    passPct: (pass/total*100).toFixed(1),
+  };
+}
+
+function computeDiffTierImpact(recsA, recsB) {
+  const group = recs => {
+    const g = {};
+    recs.forEach(r => { const d = r.difficulty||'unknown'; (g[d]=g[d]||[]).push(r); });
+    return g;
+  };
+  const ga = group(recsA), gb = group(recsB);
+  const diffs = [...new Set([...Object.keys(ga),...Object.keys(gb)])].sort();
+  const result = {};
+  for (const d of diffs) {
+    const a = ga[d]||[], b = gb[d]||[];
+    const prA = a.length ? a.filter(r=>r.total_reward>=1).length/a.length*100 : 0;
+    const prB = b.length ? b.filter(r=>r.total_reward>=1).length/b.length*100 : 0;
+    const rwA = a.length ? a.reduce((s,r)=>s+r.total_reward,0)/a.length : 0;
+    const rwB = b.length ? b.reduce((s,r)=>s+r.total_reward,0)/b.length : 0;
+    const lnA = a.length ? a.reduce((s,r)=>s+(r.completion_length||0),0)/a.length : 0;
+    const lnB = b.length ? b.reduce((s,r)=>s+(r.completion_length||0),0)/b.length : 0;
+    const imA = a.length ? a.filter(r=>r.uses_imperative).length/a.length*100 : 0;
+    const imB = b.length ? b.filter(r=>r.uses_imperative).length/b.length*100 : 0;
+    result[d] = { passRateDelta: prB-prA, rewardDelta: rwB-rwA, lengthDelta: lnB-lnA, impDelta: imB-imA };
+  }
+  return result;
+}
+</script>
+</body>
+</html>
