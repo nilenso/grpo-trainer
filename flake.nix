@@ -98,7 +98,7 @@
               '';
           in pkgs.mkShell {
             packages = commonPackages ++ linuxExtras ++ darwinExtras
-              ++ [ llamaServerWrapper ];
+              ++ [ llamaServerWrapper llamaPkg ];
 
             shellHook = ''
               # Use Nix's Python to avoid glibc conflicts

@@ -5,7 +5,7 @@ else
   NIX_CMD := nix develop
 endif
 
-.PHONY: shell rlvr-train sft-train eval dashboard grpo-train test lint fmt deps merge-adapter llama-server help
+.PHONY: shell rlvr-train sft-train eval dashboard grpo-train test lint fmt deps merge-adapter llama-server llama-server-hf help
 
 shell:
 	$(NIX_CMD)
@@ -26,6 +26,9 @@ vllm-server:
 llama-server:
 	@test -n "$(model)" || (echo "Usage: make llama-server model=<path_to_gguf>" >&2; exit 1)
 	llama-server -m "$(model)" $(if $(port),--port $(port),) $(LLAMA_ARGS)
+
+llama-server-hf:
+	./scripts/start_llama_server.sh $(if $(model),--model $(model),) $(if $(quant),--quant $(quant),) $(if $(port),--port $(port),)
 
 eval:
 	@test -n "$(model)" || (echo "Usage: make eval model=<model_name> [limit=<n>]" >&2; exit 1)
@@ -63,6 +66,7 @@ help:
 	@printf "  dashboard       run dashboard server\n"
 	@printf "  vllm-server     start vLLM server with model=<model_id>\n"
 	@printf "  llama-server    start llama.cpp server with model=<path_to_gguf> [port=<n>] [LLAMA_ARGS=...]\n"
+	@printf "  llama-server-hf download/convert HF model and start llama-server [model=<id>] [quant=<type>] [port=<n>]\n"
 	@printf "  test            run test suite with pytest\n"
 	@printf "  lint            run ruff check\n"
 	@printf "  fmt             run ruff format\n"
