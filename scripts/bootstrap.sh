@@ -49,13 +49,13 @@ echo "✅ Configuration completed"
 
 # Step 4: Link NVIDIA CUDA and NVML libraries
 echo "🔗 Linking NVIDIA CUDA and NVML libraries..."
-cd /home/nixer/ocamler-grpo
+cd /home/nixer/grpo-trainer
 mkdir -p .cuda-driver
 cd .cuda-driver
 sudo ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so .
 sudo ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1 .
 sudo ln -sf /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1 .
-export LD_LIBRARY_PATH="/home/nixer/ocamler-grpo/.cuda-driver/:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/home/nixer/grpo-trainer/.cuda-driver/:$LD_LIBRARY_PATH"
 cd ..
 echo "✅ CUDA and NVML libraries linked"
 
