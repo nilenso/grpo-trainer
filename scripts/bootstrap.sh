@@ -1,17 +1,45 @@
 #!/bin/bash
 set -eo pipefail
 
+if [ "${EUID}" -eq 0 ]; then
+    echo "❌ Error: bootstrap.sh must not be run as root. Run it as the target user."
+    exit 1
+fi
+
+NIX_PROFILE_DIR="${NIX_PROFILE:-$HOME/.nix-profile}"
+NIX_PROFILE_SCRIPT="$NIX_PROFILE_DIR/etc/profile.d/nix.sh"
+NIX_PROFILE_EXPORT="export PATH=\"$NIX_PROFILE_DIR/bin:\$PATH\""
+NIX_PROFILE_SOURCE="[ -f \"$NIX_PROFILE_SCRIPT\" ] && . \"$NIX_PROFILE_SCRIPT\""
+
+ensure_shell_profile_line() {
+    local profile_file="$1"
+    local line="$2"
+
+    touch "$profile_file"
+    if ! grep -Fqx "$line" "$profile_file"; then
+        printf '\n%s\n' "$line" >>"$profile_file"
+    fi
+}
+
+
 # Step 1: Install Nix package manager
 echo "📦 Installing Nix package manager..."
 sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install)
 echo "✅ Nix installed"
 
-# Step 2: Source Nix profile
+# Step 2: Source Nix profile and persist it for future shells
 echo "🔧 Sourcing Nix profile..."
-. /home/nixer/.nix-profile/etc/profile.d/nix.sh
-# Explicitly add nix to PATH to ensure it's available
-export PATH="/home/nixer/.nix-profile/bin:$PATH"
-echo "✅ Nix profile sourced"
+if [ ! -f "$NIX_PROFILE_SCRIPT" ]; then
+    echo "❌ Error: Nix profile script not found at $NIX_PROFILE_SCRIPT"
+    exit 1
+fi
+
+. "$NIX_PROFILE_SCRIPT"
+# Nix shells can reset PATH, so persist the profile bin export in bash startup.
+export PATH="$NIX_PROFILE_DIR/bin:$PATH"
+ensure_shell_profile_line "$HOME/.bashrc" "$NIX_PROFILE_SOURCE"
+ensure_shell_profile_line "$HOME/.bashrc" "$NIX_PROFILE_EXPORT"
+echo "✅ Nix profile sourced and persisted in $HOME/.bashrc"
 
 # Step 3: Configure Nix experimental features
 echo "⚙️  Configuring Nix experimental features..."
