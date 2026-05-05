@@ -1,6 +1,6 @@
-# ocamler-grpo
+# grpo-trainer
 
-**ocamler-grpo** is a machine learning toolkit for fine-tuning LLMs to generate high-quality OCaml code. It aligns models using Generative Representational Preference Optimization (GRPO) with real-time feedback from the OCaml compiler and test suite.
+**grpo-trainer** is a toolkit for fine-tuning LLMs to generate high-quality OCaml code using RLVR and GRPO.
 
 ## Prerequisites
 
@@ -11,8 +11,8 @@
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/ocamler-grpo.git
-cd ocamler-grpo
+git clone https://github.com/your-org/grpo-trainer.git
+cd grpo-trainer
 ```
 
 ### 2. Setup Environment with Nix
@@ -23,7 +23,17 @@ Enter a development shell with Python, OCaml, uv, and all tools pre-installed:
 make shell
 ```
 
+For a Linux training server, run the bootstrap script to install/configure Nix, persist the Nix profile setup in `~/.bashrc`, link CUDA driver libraries, enter the CUDA dev shell, and install CUDA-enabled Python dependencies:
+
+```bash
+scripts/bootstrap.sh
+```
+
+Do not run the bootstrap script as root.
+
 ### 2.5 Install pytorch with CUDA support
+
+If you are setting up manually instead of using `scripts/bootstrap.sh`, install PyTorch with CUDA support inside the Nix shell:
 
 ```bash
 uv sync --extra cuda
@@ -162,7 +172,7 @@ The training script automatically starts monitoring services:
 ## Project Structure
 
 ```
-ocamler-grpo/
+grpo-trainer/
 ├── rlvr/                    # RLVR/GRPO training module
 │   ├── train.py             # Main GRPO training script
 │   ├── environment.py       # Verifiers-compatible environment
