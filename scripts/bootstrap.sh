@@ -22,10 +22,14 @@ ensure_shell_profile_line() {
 }
 
 
-# Step 1: Install Nix package manager
-echo "📦 Installing Nix package manager..."
-sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install)
-echo "✅ Nix installed"
+# Step 1: Install Nix package manager if needed
+if command -v nix >/dev/null 2>&1; then
+    echo "✅ Nix already installed at $(command -v nix)"
+else
+    echo "📦 Installing Nix package manager..."
+    sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install)
+    echo "✅ Nix installed"
+fi
 
 # Step 2: Source Nix profile and persist it for future shells
 echo "🔧 Sourcing Nix profile..."
